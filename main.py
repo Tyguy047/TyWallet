@@ -109,12 +109,6 @@ def encryptData(key, data):
     return encrypted.decode()
 
 
-# Decrypts data using Fernet key
-def decryptData(key, encrypted_data):
-    fernet = Fernet(key)
-    decrypted = fernet.decrypt(encrypted_data.encode())
-    return decrypted.decode()
-
 def startUp():
     global app, window, layout
 
@@ -130,6 +124,10 @@ def startUp():
     if not os.path.exists(config_dir):
         os.makedirs(config_dir)
     
+    wallets_dir = os.path.expanduser('~/TyWallet/Wallets')
+    if not os.path.exists(wallets_dir):
+        os.makedirs(wallets_dir)
+    
     if not os.path.exists(key_path):
         with open(key_path, 'wb') as key_file:  # binary write mode
             key = Fernet.generate_key()
@@ -143,16 +141,7 @@ def startUp():
                     "Monero": False,
                     "Ethereum": False,
                 },
-                "privkeys": {
-                    "Bitcoin": {},
-                    "Monero": {},
-                    "Ethereum": {},
-                },
-                "pubkeys": {
-                    "Bitcoin": {},
-                    "Monero": {},
-                    "Ethereum": {},
-                },
+
                 "addresses": {
                     "Bitcoin": {},
                     "Monero": {},
@@ -370,21 +359,13 @@ def menuScreen():
         def makeBitcoinWallet():
             def generateWallet():
 
-                ENCRYPTION_KEY_FILE = readKey()
-
                 WALLET_GEN = btc.walletGen()
-                SEED = WALLET_GEN["mnemonic"]
-                ADDRESS = WALLET_GEN["address"]
-                PRIVATE_KEY = WALLET_GEN["private_key"]
-                PUBLIC_KEY = WALLET_GEN["public_key"]
+                SEED = WALLET_GEN["Seed"]
+                ADDRESS = WALLET_GEN["Address"]
+                
                 with open(config_path, 'r+', encoding='utf-8') as config:
                     data = json.load(config)
                     data["coins"]["Bitcoin"] = True
-
-                    ENC_PRIV_KEY = encryptData(ENCRYPTION_KEY_FILE, PRIVATE_KEY)
-
-                    data["privkeys"]["Bitcoin"] = ENC_PRIV_KEY
-                    data["pubkeys"]["Bitcoin"] = PUBLIC_KEY
                     data["addresses"]["Bitcoin"] = ADDRESS
                     config.seek(0)
                     json.dump(data, config, indent=4)
@@ -433,7 +414,10 @@ Your current pending balance is: {PENDING}.<br><br><br>
 </html>""")
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
-    balance()
+    try:
+        balance()
+    except Exception:
+        pass
 
     def price():
         BTC_PRICE = btc.priceGrab()
@@ -446,13 +430,6 @@ Your current pending balance is: {PENDING}.<br><br><br>
     price()
 
     def sendBitcoin():
-
-        ENCRYPTION_KEY_FILE = readKey()
-        with open(config_path, 'r', encoding='utf-8') as config:
-            data = json.load(config)
-            encrypted_priv_key = data["privkeys"]["Bitcoin"]
-            PRIVATE_KEY = decryptData(ENCRYPTION_KEY_FILE, encrypted_priv_key)
-
         receiver_label = QLabel("Enter the Bitcoin address of who will be receiving the fund you wish to send")
         receiver_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(receiver_label)
@@ -470,7 +447,39 @@ Your current pending balance is: {PENDING}.<br><br><br>
         layout.addWidget(amount_input)
 
         send_button = QPushButton("Send Transaction")
-        send_button.clicked.connect(lambda: btc.sendBTC(receiver_input.text(), amount_input.text(), PRIVATE_KEY))
+
+        def on_send_click():
+            receiver = receiver_input.text().strip()
+            amount_text = amount_input.text().strip()
+            if not receiver:
+                error_popup = QMessageBox()
+                error_popup.setWindowTitle("Error")
+                error_popup.setText("Please enter a valid receiver address.")
+                error_popup.exec()
+                return
+            try:
+                amount = float(amount_text)
+                if amount <= 0:
+                    raise ValueError
+            except ValueError:
+                error_popup = QMessageBox()
+                error_popup.setWindowTitle("Error")
+                error_popup.setText("Please enter a valid positive amount.")
+                error_popup.exec()
+                return
+            try:
+                tx_result = btc.sendBitcoin(receiver, amount)
+                success_popup = QMessageBox()
+                success_popup.setWindowTitle("Transaction Sent")
+                success_popup.setText(f"Transaction successful. Transaction ID:\n{tx_result}")
+                success_popup.exec()
+            except Exception as e:
+                error_popup = QMessageBox()
+                error_popup.setWindowTitle("Error")
+                error_popup.setText(f"Failed to send transaction:\n{str(e)}")
+                error_popup.exec()
+
+        send_button.clicked.connect(on_send_click)
         layout.addWidget(send_button)
     sendBitcoin()
 
@@ -482,6 +491,13 @@ Your Bitcoin Address Is: {BTC_ADDRESS}
 </html>""")
         address.setAlignment(Qt.AlignCenter)
         layout.addWidget(address)
+
+        copy_button = QPushButton("Copy Address To Clipboard")
+        def copyButton():
+            clipboard = QApplication.clipboard()
+            clipboard.setText(BTC_ADDRESS)
+        copy_button.clicked.connect(copyButton)
+        layout.addWidget(copy_button)
     address()
 
     def backToMenu():
