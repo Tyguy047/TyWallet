@@ -1,0 +1,5 @@
+pyside6
+requests
+bip_utils
+web3
+python-dotenv
