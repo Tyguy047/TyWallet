@@ -47,7 +47,7 @@ TyWallet is a free, secure, and beginner-friendly cryptocurrency wallet built wi
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/your-username/TyWallet.git
+   git clone https://github.com/Tyguy047/TyWallet.git
    cd TyWallet
    ```
 
@@ -219,7 +219,7 @@ For detailed documentation, see [DOCUMENTATION.md](DOCUMENTATION.md) which inclu
 - **Website**: [www.tywallet.xyz](https://www.tywallet.xyz)
 - **Free API**: [api.tywallet.xyz](https://api.tywallet.xyz)
 - **Documentation**: [DOCUMENTATION.md](DOCUMENTATION.md)
-- **Issues**: [GitHub Issues](https://github.com/your-username/TyWallet/issues)
+- **Issues**: [GitHub Issues](https://github.com/Tyguy047/TyWallet/issues)
 
 ## 🤝 Contributing
 
@@ -302,7 +302,7 @@ If you find TyWallet useful, please consider:
 
 - **Email**: getintouch@tylercaselli.com
 - **Website**: [www.tywallet.xyz](https://www.tywallet.xyz)
-- **Issues**: [GitHub Issues](https://github.com/your-username/TyWallet/issues)
+- **Issues**: [GitHub Issues](https://github.com/Tyguy047/TyWallet/issues)
 
 ---
 
