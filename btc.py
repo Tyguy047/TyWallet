@@ -6,23 +6,11 @@ import json
 from utils import getCMC
 
 def priceGrab():
-    CMC_API = getCMC()
     try:
-        url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
-        parameters = {
-            'symbol': 'BTC',
-            'convert': 'USD'
-        }
-        headers = {
-            'Accepts': 'application/json',
-            'X-CMC_PRO_API_KEY': CMC_API,  # Replace with your actual API key
-        }
-
-        response = requests.get(url, headers=headers, params=parameters)
+        url = 'https://api.tywallet.xyz/prices/bitcoin'
+        response = requests.get(url)
         response.raise_for_status()
-        data = response.json()
-        btc_price = data['data']['BTC']['quote']['USD']['price']
-        return f"Bitcoin price is ${btc_price:,.2f}"
+        return response.text
             
     except Exception:
         return "Error: Price data could not be fetched!"
