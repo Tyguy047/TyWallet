@@ -1,29 +1,16 @@
-from bip_utils import Bip39MnemonicGenerator, Bip39SeedGenerator, Bip84, Bip84Coins, Bip44Changes
-from bitcoinlib.transactions import Transaction
+import os
 from bitcoinlib.wallets import Wallet
-from bitcoinlib.keys import HDKey
+from bitcoinlib.mnemonic import Mnemonic
 import requests
 import json
-import os
 from utils import getCMC
 
 def priceGrab():
-    CMC_API = getCMC()
     try:
-        url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
-        parameters = {
-            'symbol': 'BTC',
-            'convert': 'USD'
-        }
-        headers = {
-            'Accepts': 'application/json',
-            'X-CMC_PRO_API_KEY': CMC_API,  # Replace with your actual API key
-        }
-
-        response = requests.get(url, headers=headers, params=parameters)
-        data = response.json()
-        btc_price = data['data']['BTC']['quote']['USD']['price']
-        return f"Bitcoin price is ${btc_price:,.2f}"
+        url = 'https://api.tywallet.xyz/prices/bitcoin'
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.text
             
     except Exception:
         return "Error: Price data could not be fetched!"
@@ -38,135 +25,89 @@ def balanceCheck():
     ADDRESS = addressGrab()
 
     try:
-        url = f"https://blockstream.info/api/address/{ADDRESS}"
+        url = f"https://blockstream.info/testnet/api/address/{ADDRESS}"
         response = requests.get(url)
+        response.raise_for_status()
         data = response.json()
         
         confirmed = data['chain_stats']['funded_txo_sum'] - data['chain_stats']['spent_txo_sum']
         unconfirmed = data['mempool_stats']['funded_txo_sum'] - data['mempool_stats']['spent_txo_sum']
         
         return {
-            "confirmed_balance": confirmed / 1e8,
-            "unconfirmed_balance": unconfirmed / 1e8
+            "confirmed_balance": f"{confirmed / 1e8:,.8f}",
+            "unconfirmed_balance": f"{unconfirmed / 1e8:,.8f}"
         }
 
     except Exception:
         return "An error occured when fetching your balance! Don't worry your funds are most likley okay this is probably an error on our end retreiving your balance!"
 
 def walletGen():
-    def generate_seed():
-        mnemonic = Bip39MnemonicGenerator().FromWordsNumber(24)
-        # print("Mnemonic (Seed Phrase):", str(mnemonic))
-        seed_bytes = Bip39SeedGenerator(mnemonic).Generate()
-        return str(mnemonic), seed_bytes
-
-    def generate_wallet(seed_bytes):
-        bip84_wallet = Bip84.FromSeed(seed_bytes, Bip84Coins.BITCOIN)
-        account = bip84_wallet.Purpose().Coin().Account(0)
-        change = account.Change(Bip44Changes.CHAIN_EXT)
-        return change
-
-    def get_private_key(change):
-        priv_key = change.AddressIndex(0).PrivateKey().ToWif()
-        # print("Private Key (WIF):", priv_key)
-        return priv_key
-
-    def get_public_info(change):
-        pub_key = change.AddressIndex(0).PublicKey()
-        pub_key_hex = pub_key.RawCompressed().ToHex()
-        address = pub_key.ToAddress()
-        # print("Public Key (Compressed):", pub_key_hex)
-        # print("Bitcoin Address:", address)
-        return pub_key_hex, address
-
-    # --- Run generation
-    mnemonic, seed_bytes = generate_seed()
-    change = generate_wallet(seed_bytes)
-    pub_key_hex, address = get_public_info(change)
-    priv_key = get_private_key(change)
-
-    return {
-        "mnemonic": mnemonic,
-        "private_key": priv_key,
-        "public_key": pub_key_hex,
-        "address": address
-    }
-
-def sendBTC(receiver_address, amount, private_key):
-    def makeRawTx():
-        # Derive address from private key WIF
-        key = HDKey(import_key=private_key)
-        address = key.address()
-
-        # Fetch UTXOs
-        url = f"https://blockstream.info/api/address/{address}/utxo"
-        response = requests.get(url)
-        utxos = response.json()
-
-        inputs = []
-        total_available = 0
-        for utxo in utxos:
-            inputs.append({
-                'txid': utxo['txid'],
-                'vout': utxo['vout'],
-                'value': utxo['value']
-            })
-            total_available += utxo['value']
-
-        send_value = int(float(amount) * 1e8)
-
-        # Estimate transaction size
-        num_inputs = len(inputs)
-        num_outputs = 2  # receiver + change
-        tx_size = 10 + num_inputs * 148 + num_outputs * 34
-
-        # Fetch fee rate (satoshis per byte) from mempool.space
-        try:
-            fee_api_url = 'https://mempool.space/api/v1/fees/recommended'
-            fee_response = requests.get(fee_api_url)
-            fee_data = fee_response.json()
-            fee_rate = fee_data.get('fastestFee', 10)  # fallback to 10 if API fails
-        except Exception:
-            fee_rate = 10
-
-        fee = tx_size * fee_rate
-
-        change = total_available - send_value - fee
-        if change < 0:
-            raise ValueError("Insufficient funds for amount + fee")
-
-        # Build outputs
-        outputs = [
-            (receiver_address, send_value),
-        ]
-        if change > 0:
-            outputs.append((address, change))
-
-        # Create transaction
-        tx = Transaction(network='bitcoin')
-        for inp in inputs:
-            tx.add_input(prev_hash=inp['txid'], output_n=inp['vout'], value=inp['value'], address=address)
-
-        for out_addr, out_value in outputs:
-            tx.add_output(address=out_addr, value=out_value)
-
-        # Sign transaction inputs
-        for i in range(len(inputs)):
-            tx.sign(i, key.wif())
-
-        # Return raw transaction hex
-        return tx.as_hex()
+    # Generate a mnemonic seed phrase first
+    mnemonic = Mnemonic()
+    seed_phrase = mnemonic.generate(strength=256)  # 256 bits = 24 words
     
-    TX = makeRawTx()
+    # Create wallet with unique name using timestamp and the generated mnemonic
+    wallet_name = f"Bitcoin"
+    wallet = Wallet.create(wallet_name, keys=seed_phrase, network='testnet')
+    print("Wallet created!")
 
-    def broadcastTx(raw_tx_hex):
-        url = "https://blockstream.info/api/tx"
-        headers = {'Content-Type': 'text/plain'}
-        response = requests.post(url, data=raw_tx_hex, headers=headers)
-        if response.status_code == 200:
-            return response.text  # Returns the txid if successful
-        else:
-            raise Exception(f"Broadcast failed: {response.status_code} - {response.text}")
+    wallet_data = {
+        "Name": str(wallet.name),
+        "Network": str(wallet.network.name),
+        "Address": str(wallet.get_key().address),
+        "Public key": str(wallet.get_key().public()) if hasattr(wallet.get_key(), 'public') else str(wallet.get_key()),
+        "Private key (WIF)": str(wallet.get_key().wif),
+        "Seed": str(seed_phrase),
+    }
+    
+    # Save wallet to file
+    wallet_file = os.path.join(os.path.expanduser('~/TyWallet/Wallets'), f"{wallet.name}_bitcoin_testnet.json")
+    with open(wallet_file, 'w', encoding='utf-8') as f:
+        json.dump(wallet_data, f, indent=2)
+    
+    print(f"Wallet saved to: {wallet_file}")
+    
+    return wallet_data
 
-    txid = broadcastTx(TX)
-    print("Transaction broadcasted with txid:", txid)
+def broadcastTx(tx_hex):
+    url = "https://blockstream.info/testnet/api/tx"
+    headers = {'Content-Type': 'text/plain'}
+    try:
+        response = requests.post(url, data=tx_hex, headers=headers)
+        response.raise_for_status()
+        return response.text  # Returns the transaction ID
+    except Exception as e:
+        return f"Broadcast failed: {e}"
+
+def sendBitcoin(RECEIVER_ADDRESS, AMOUNT):
+    def smartFeeCalc():
+        try:
+            url = "https://mempool.space/api/v1/fees/recommended"
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+            return data['fastestFee']
+        except Exception:
+            return 1
+    FEE = smartFeeCalc()
+
+    def rawTx(RECEIVER_ADDRESS, AMOUNT, FEE_PER_BYTE):
+        wallet = Wallet('Bitcoin')
+        wallet.scan()  # Rescan to make sure UTXOs are available
+
+        amount_satoshi = int(AMOUNT * 1e8)
+        estimated_tx_size = 250  # Approximate size in bytes
+        fee_total = FEE_PER_BYTE * estimated_tx_size
+
+        tx = wallet.send_to(
+            RECEIVER_ADDRESS,
+            amount_satoshi,
+            fee=fee_total,
+            min_confirms=0  # Allow unconfirmed UTXOs
+        )
+
+        return tx.as_hex()
+
+    tx_hex = rawTx(RECEIVER_ADDRESS, AMOUNT, FEE)
+    result = broadcastTx(tx_hex)
+    return result

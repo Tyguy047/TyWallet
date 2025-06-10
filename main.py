@@ -5,22 +5,18 @@ import sys
 import os
 import json
 from cryptography.fernet import Fernet
-from utils import getCMC
+import threading
 
 # Coins
 import btc
 import eth
 import xmr
 
-class PriceUpdater(QObject):
-    price_signal = Signal(str, str)
-# Global application and UI components
 app = None
 window = None
 layout = None
 config_dir = os.path.expanduser('~/TyWallet')
 config_path = os.path.join(config_dir, 'config.json')
-key_path = os.path.join(config_dir, 'wallet.key')
 
 
 
@@ -96,25 +92,6 @@ def getEthereumWallet():
         print(f"Error reading config file: {e}")
         return ""
 
-def readKey():
-    with open(key_path, 'rb') as key_file:
-        key = key_file.read()
-    return key
-
-def encryptData(key, data):
-    fernet = Fernet(key)
-    if isinstance(data, str):
-        data = data.encode()
-    encrypted = fernet.encrypt(data)
-    return encrypted.decode()
-
-
-# Decrypts data using Fernet key
-def decryptData(key, encrypted_data):
-    fernet = Fernet(key)
-    decrypted = fernet.decrypt(encrypted_data.encode())
-    return decrypted.decode()
-
 def startUp():
     global app, window, layout
 
@@ -130,10 +107,9 @@ def startUp():
     if not os.path.exists(config_dir):
         os.makedirs(config_dir)
     
-    if not os.path.exists(key_path):
-        with open(key_path, 'wb') as key_file:  # binary write mode
-            key = Fernet.generate_key()
-            key_file.write(key)
+    wallets_dir = os.path.expanduser('~/TyWallet/Wallets')
+    if not os.path.exists(wallets_dir):
+        os.makedirs(wallets_dir)
 
     if not os.path.exists(config_path):
         with open(config_path, 'w', encoding='utf-8') as config:
@@ -143,16 +119,7 @@ def startUp():
                     "Monero": False,
                     "Ethereum": False,
                 },
-                "privkeys": {
-                    "Bitcoin": {},
-                    "Monero": {},
-                    "Ethereum": {},
-                },
-                "pubkeys": {
-                    "Bitcoin": {},
-                    "Monero": {},
-                    "Ethereum": {},
-                },
+
                 "addresses": {
                     "Bitcoin": {},
                     "Monero": {},
@@ -257,34 +224,6 @@ def menuScreen():
     NAME = getName()
     FAVE_COIN = getFaveCoin()
 
-    def setCMC():
-
-        def saveAPI():
-            api_key = inputAPI.text()
-            with open(config_path, 'r+', encoding='utf-8') as config:
-                data = json.load(config)
-                data["general"]["CMC_API"] = api_key
-                config.seek(0)
-                json.dump(data, config, indent=4)
-                config.truncate()
-            menuScreen()
-
-        inputAPItext = QLabel("Enter your CoinMarketCap API Key:")
-        inputAPItext.setAlignment(Qt.AlignCenter)
-        layout.addWidget(inputAPItext)
-
-        inputAPI = QLineEdit()
-        inputAPI.setAlignment(Qt.AlignCenter)
-        layout.addWidget(inputAPI)
-
-        submit_btn = QPushButton("Save API Key")
-        submit_btn.clicked.connect(saveAPI)
-        layout.addWidget(submit_btn, alignment=Qt.AlignCenter)
-
-
-    if getCMC() == False:
-        setCMC()
-
     def title():
         display_name = NAME if NAME else "User"
         if FAVE_COIN:
@@ -300,63 +239,24 @@ def menuScreen():
     title()
 
     def cryptoPrices():
-        BTC_PRICE = "Loading..."
-        ETH_PRICE = "Loading..."
-        MONERO_PRICE = "Loading..."
+        try:
+            BTC_PRICE = btc.priceGrab()
+            MONERO_PRICE = xmr.priceGrab()
+            ETH_PRICE = eth.priceGrab()
+        except Exception:
+            BTC_PRICE = "Error: Price data could not be fetched!"
+            MONERO_PRICE = "Error: Price data could not be fetched!"
+            ETH_PRICE = "Error: Price data could not be fetched!"
 
-        price = QLabel(f"""<html>Bitcoin: {BTC_PRICE}<br>
-    Monero: {MONERO_PRICE}<br>
-    Ethereum: {ETH_PRICE}<br><br>
-    <i>Price data from CoinMarketCap</i>
-    <html>
-    """)
+        price = QLabel(f"""<html>Bitcoin: ${BTC_PRICE}<br>
+        Monero: ${MONERO_PRICE}<br>
+        Ethereum: ${ETH_PRICE}<br><br>
+        <i>Price data from our own API: <a href="https://api.tywallet.xyz">https://api.tywallet.xyz</a></i>
+        <html>
+        """)
+        price.setOpenExternalLinks(True)
         price.setAlignment(Qt.AlignCenter)
         layout.addWidget(price)
-
-        updater = PriceUpdater()
-        latest = {"btc": BTC_PRICE, "eth": ETH_PRICE, "xmr": MONERO_PRICE}
-
-        def update_label():
-            # Show exactly what is returned for each coin, including error messages
-            price.setText(f"""<html>Bitcoin: {latest['btc']}<br>
-    Monero: {latest['xmr']}<br>
-    Ethereum: {latest['eth']}<br><br>
-    <i>Price data from CoinMarketCap</i>
-    <html>""")
-
-        def on_price_update(coin, value):
-            print(f"Updated price for {coin}: {value}")
-            latest[coin] = value  # Store the exact returned value, including error messages
-            update_label()
-
-        updater.price_signal.connect(on_price_update)
-
-        def fetch_btc():
-            try:
-                btc_val = btc.priceGrab()
-            except Exception as e:
-                btc_val = "Error"
-            updater.price_signal.emit('btc', btc_val)
-
-        def fetch_eth():
-            try:
-                eth_val = eth.priceGrab()
-            except Exception as e:
-                eth_val = "Error"
-            updater.price_signal.emit('eth', eth_val)
-
-        def fetch_xmr():
-            try:
-                xmr_val = xmr.priceGrab()
-            except Exception as e:
-                xmr_val = "Error"
-            updater.price_signal.emit('xmr', xmr_val)
-
-        def fetch_all_prices():
-            fetch_btc()
-            fetch_eth()
-            fetch_xmr()
-        fetch_all_prices()
     cryptoPrices()
 
     def options():
@@ -370,21 +270,13 @@ def menuScreen():
         def makeBitcoinWallet():
             def generateWallet():
 
-                ENCRYPTION_KEY_FILE = readKey()
-
                 WALLET_GEN = btc.walletGen()
-                SEED = WALLET_GEN["mnemonic"]
-                ADDRESS = WALLET_GEN["address"]
-                PRIVATE_KEY = WALLET_GEN["private_key"]
-                PUBLIC_KEY = WALLET_GEN["public_key"]
+                SEED = WALLET_GEN["Seed"]
+                ADDRESS = WALLET_GEN["Address"]
+                
                 with open(config_path, 'r+', encoding='utf-8') as config:
                     data = json.load(config)
                     data["coins"]["Bitcoin"] = True
-
-                    ENC_PRIV_KEY = encryptData(ENCRYPTION_KEY_FILE, PRIVATE_KEY)
-
-                    data["privkeys"]["Bitcoin"] = ENC_PRIV_KEY
-                    data["pubkeys"]["Bitcoin"] = PUBLIC_KEY
                     data["addresses"]["Bitcoin"] = ADDRESS
                     config.seek(0)
                     json.dump(data, config, indent=4)
@@ -404,12 +296,53 @@ def menuScreen():
             make_wallet.clicked.connect(generateWallet)
             layout.addWidget(make_wallet)
 
-        # Remove empty placeholder functions for makeMoneroWallet and makeEthereumWallet
+        def moneroMenu():
+            pass
+
+        def makeMoneroWallet():
+            pass
+
+        def ethereumMenu():
+            ethereum = QPushButton("Ethereum Menu")
+            ethereum.clicked.connect(ethereumScreen)
+            layout.addWidget(ethereum)
+
+        def makeEthereumWallet():
+            WALLET = eth.walletGen()
+
+            with open(config_path, 'r+', encoding='utf-8') as config:
+                data = json.load(config)
+                data["coins"]["Ethereum"] = True
+                data["addresses"]["Ethereum"] = WALLET["Public_Key"]
+                config.seek(0)
+                json.dump(data, config, indent=4)
+                config.truncate()
+            success_popup = QMessageBox()
+            success_popup.setWindowTitle("Success")
+            success_popup.setText(f"""<html><center>
+<b>Wallet successfully generated!</b><br><br>
+<i>Write your seed phrase down somewhere safe incase you need to recover your wallet:</i><br><br><br>
+{WALLET["Seed"]}
+</center>
+</html>""")
+            success_popup.setStandardButtons(QMessageBox.Ok)
+            success_popup.buttonClicked.connect(lambda: menuScreen())
+            success_popup.exec()
 
         if not checkBitcoinWallet():
             makeBitcoinWallet()
         else:
             bitcoinMenu()
+
+        if not checkMoneroWallet():
+            makeMoneroWallet()
+        else:
+            moneroMenu()
+
+        if not checkEthereumWallet():
+            makeEthereumWallet()
+        else:
+            ethereumMenu()
     options()
 
 def bitcoinScreen():
@@ -429,30 +362,27 @@ def bitcoinScreen():
         title = QLabel(f"""<html>
 Your current confirmed balance is: {CONFIRMED}.<br><br>
 Your current pending balance is: {PENDING}.<br><br><br>
-<i>Pending funds are still processing and are not able to be spent yet!</i>
+<i>Pending funds are still processing and are not able to be spent yet!<br>
+If your unconfirmed balance is negative it means that you have an out going transaction.</i>
 </html>""")
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
-    balance()
+    try:
+        balance()
+    except Exception:
+        pass
 
     def price():
         BTC_PRICE = btc.priceGrab()
 
         price = QLabel(f"""<html>
-{BTC_PRICE}
+${BTC_PRICE}
 </html>""")
         price.setAlignment(Qt.AlignCenter)
         layout.addWidget(price)
     price()
 
     def sendBitcoin():
-
-        ENCRYPTION_KEY_FILE = readKey()
-        with open(config_path, 'r', encoding='utf-8') as config:
-            data = json.load(config)
-            encrypted_priv_key = data["privkeys"]["Bitcoin"]
-            PRIVATE_KEY = decryptData(ENCRYPTION_KEY_FILE, encrypted_priv_key)
-
         receiver_label = QLabel("Enter the Bitcoin address of who will be receiving the fund you wish to send")
         receiver_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(receiver_label)
@@ -470,7 +400,39 @@ Your current pending balance is: {PENDING}.<br><br><br>
         layout.addWidget(amount_input)
 
         send_button = QPushButton("Send Transaction")
-        send_button.clicked.connect(lambda: btc.sendBTC(receiver_input.text(), amount_input.text(), PRIVATE_KEY))
+
+        def on_send_click():
+            receiver = receiver_input.text().strip()
+            amount_text = amount_input.text().strip()
+            if not receiver:
+                error_popup = QMessageBox()
+                error_popup.setWindowTitle("Error")
+                error_popup.setText("Please enter a valid receiver address.")
+                error_popup.exec()
+                return
+            try:
+                amount = float(amount_text)
+                if amount <= 0:
+                    raise ValueError
+            except ValueError:
+                error_popup = QMessageBox()
+                error_popup.setWindowTitle("Error")
+                error_popup.setText("Please enter a valid positive amount.")
+                error_popup.exec()
+                return
+            try:
+                tx_result = btc.sendBitcoin(receiver, amount)
+                success_popup = QMessageBox()
+                success_popup.setWindowTitle("Transaction Sent")
+                success_popup.setText(f"Transaction successful. Transaction ID:\n{tx_result}")
+                success_popup.exec()
+            except Exception as e:
+                error_popup = QMessageBox()
+                error_popup.setWindowTitle("Error")
+                error_popup.setText(f"Failed to send transaction:\n{str(e)}")
+                error_popup.exec()
+
+        send_button.clicked.connect(on_send_click)
         layout.addWidget(send_button)
     sendBitcoin()
 
@@ -482,6 +444,13 @@ Your Bitcoin Address Is: {BTC_ADDRESS}
 </html>""")
         address.setAlignment(Qt.AlignCenter)
         layout.addWidget(address)
+
+        copy_button = QPushButton("Copy Address To Clipboard")
+        def copyButton():
+            clipboard = QApplication.clipboard()
+            clipboard.setText(BTC_ADDRESS)
+        copy_button.clicked.connect(copyButton)
+        layout.addWidget(copy_button)
     address()
 
     def backToMenu():
@@ -489,6 +458,70 @@ Your Bitcoin Address Is: {BTC_ADDRESS}
         back.clicked.connect(menuScreen)
         layout.addWidget(back)
     backToMenu()
+
+def ethereumScreen():
+    setWindow()
+    
+    def title():
+        title = QLabel("Ethereum")
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+    title()
+
+    def balance():
+        ETH_BALANCE = eth.balanceCheck()
+
+        balance = QLabel(f"""<html>
+Your current confirmed balance is: {ETH_BALANCE} ETH.<br><br><br>
+</html>""")
+        balance.setAlignment(Qt.AlignCenter)
+        layout.addWidget(balance)
+    balance()
+
+    def sendEthereum():
+        pass
+        receiver_label = QLabel("Enter the Ethereum address of who will be receiving the fund you wish to send")
+        receiver_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(receiver_label)
+
+        receiver_input = QLineEdit()
+        receiver_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(receiver_input)
+
+
+        amount_label = QLabel("Enter the amount of ETH you would like to send")
+        amount_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(amount_label)
+
+        amount_input = QLineEdit()
+        amount_input.setAlignment(Qt.AlignCenter)
+        layout.addWidget(amount_input)
+
+        def sendButtonLogic():
+            try:
+                TX = eth.createTx(receiver_input.text(), amount_input.text())
+                ID = eth.broadcastTx(TX)
+
+                success_popup = QMessageBox()
+                success_popup.setWindowTitle("Transaction Sent")
+                success_popup.setText(f"Transaction successful. Transaction ID:\n{ID}")
+                success_popup.exec()
+
+            except Exception:
+                error_popup = QMessageBox()
+                error_popup.setWindowTitle("Error")
+                error_popup.setText(f"An error occurred while sending the transaction!")
+                error_popup.exec()
+
+
+
+        send_button = QPushButton("Send Transaction")
+        send_button.setAlignment(Qt.AlignCenter)
+        send_button.clicked.connect(sendButtonLogic)
+        layout.addWidget(send_button)
+
+
+    sendEthereum()
 
 if __name__ == '__main__':
     startUp()
