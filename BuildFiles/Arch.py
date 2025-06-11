@@ -16,7 +16,7 @@ from pathlib import Path
 # Configuration
 APP_NAME = "TyWallet"
 MAIN_SCRIPT = "../main.py"
-ICON_PATH = "../assets/tywallet.png"  # Add this icon file if available
+ICON_PATH = "../assets/app_icon.png"  # Use app_icon from assets folder
 DESKTOP_FILE_NAME = "tywallet.desktop"
 
 def check_dependencies():
@@ -89,6 +89,19 @@ def build_app():
     """Build the Linux application using PyInstaller"""
     print("🔨 Building TyWallet for Arch Linux...")
     
+    # Check for icon in different formats
+    icon_formats = [
+        "../assets/app_icon.png",
+        "../assets/app_icon.jpg",
+        "../assets/app_icon.jpeg"
+    ]
+    
+    icon_path = None
+    for path in icon_formats:
+        if os.path.exists(path):
+            icon_path = path
+            break
+    
     # PyInstaller command arguments
     cmd = [
         sys.executable, "-m", "PyInstaller",
@@ -128,11 +141,11 @@ def build_app():
     ]
     
     # Add icon if available
-    if os.path.exists(ICON_PATH):
-        cmd.extend(["--icon", ICON_PATH])
-        print(f"✅ Using icon: {ICON_PATH}")
+    if icon_path:
+        cmd.extend(["--icon", icon_path])
+        print(f"✅ Using app icon: {icon_path}")
     else:
-        print(f"⚠️ Icon not found: {ICON_PATH} (app will use default icon)")
+        print("⚠️ No app_icon found in assets folder - app will use default icon")
     
     print(f"🚀 Running: {' '.join(cmd)}")
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -149,7 +162,19 @@ def create_desktop_file():
     print("🖥️ Creating desktop file...")
     
     executable_path = os.path.abspath(f"dist/{APP_NAME}")
-    icon_path = os.path.abspath(ICON_PATH) if os.path.exists(ICON_PATH) else "accessories-calculator"
+    
+    # Check for icon in different formats
+    icon_formats = [
+        "../assets/app_icon.png",
+        "../assets/app_icon.jpg",
+        "../assets/app_icon.jpeg"
+    ]
+    
+    icon_path = "accessories-calculator"  # Default fallback
+    for path in icon_formats:
+        if os.path.exists(path):
+            icon_path = os.path.abspath(path)
+            break
     
     desktop_content = f"""[Desktop Entry]
 Version=1.0
@@ -213,9 +238,9 @@ echo "🖥️ Installing desktop file..."
 cp "{DESKTOP_FILE_NAME}" "$DESKTOP_DIR/"
 
 # Copy icon if available
-if [ -f "../assets/tywallet.png" ]; then
+if [ -f "../assets/app_icon.png" ]; then
     echo "🎨 Installing icon..."
-    cp "../assets/tywallet.png" "$ICON_DIR/tywallet.png"
+    cp "../assets/app_icon.png" "$ICON_DIR/tywallet.png"
 fi
 
 # Create symlink in PATH
