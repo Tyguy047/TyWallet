@@ -60,7 +60,8 @@ def checkEthereumWallet():
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            return data["coins"].get("Ethereum")
+            result = data["coins"].get("Ethereum")
+            return result
     except json.JSONDecodeError as e:
         print(f"Error reading config file: {e}")
         return False
@@ -269,8 +270,16 @@ def menuScreen():
         # Make new wallets
         def makeBitcoinWallet():
             def generateWallet():
-
                 WALLET_GEN = btc.walletGen()
+                
+                # Check if wallet generation failed
+                if "error" in WALLET_GEN:
+                    error_popup = QMessageBox()
+                    error_popup.setWindowTitle("Error")
+                    error_popup.setText(f"Failed to generate Bitcoin wallet:\n{WALLET_GEN['error']}")
+                    error_popup.exec()
+                    return
+                
                 SEED = WALLET_GEN["Seed"]
                 ADDRESS = WALLET_GEN["Address"]
                 
@@ -297,10 +306,14 @@ def menuScreen():
             layout.addWidget(make_wallet)
 
         def moneroMenu():
-            pass
+            monero = QPushButton("Monero Menu")
+            monero.clicked.connect(lambda: QMessageBox.information(window, "Coming Soon", "Monero functionality is coming soon!"))
+            layout.addWidget(monero)
 
         def makeMoneroWallet():
-            pass
+            make_monero_wallet = QPushButton("Make A Monero Wallet")
+            make_monero_wallet.clicked.connect(lambda: QMessageBox.information(window, "Coming Soon", "Monero wallet generation is coming soon!"))
+            layout.addWidget(make_monero_wallet)
 
         def ethereumMenu():
             ethereum = QPushButton("Ethereum Menu")
@@ -308,26 +321,31 @@ def menuScreen():
             layout.addWidget(ethereum)
 
         def makeEthereumWallet():
-            WALLET = eth.walletGen()
+            def generateEthWallet():
+                WALLET = eth.walletGen()
 
-            with open(config_path, 'r+', encoding='utf-8') as config:
-                data = json.load(config)
-                data["coins"]["Ethereum"] = True
-                data["addresses"]["Ethereum"] = WALLET["Public_Key"]
-                config.seek(0)
-                json.dump(data, config, indent=4)
-                config.truncate()
-            success_popup = QMessageBox()
-            success_popup.setWindowTitle("Success")
-            success_popup.setText(f"""<html><center>
+                with open(config_path, 'r+', encoding='utf-8') as config:
+                    data = json.load(config)
+                    data["coins"]["Ethereum"] = True
+                    data["addresses"]["Ethereum"] = WALLET["Public_Key"]
+                    config.seek(0)
+                    json.dump(data, config, indent=4)
+                    config.truncate()
+                success_popup = QMessageBox()
+                success_popup.setWindowTitle("Success")
+                success_popup.setText(f"""<html><center>
 <b>Wallet successfully generated!</b><br><br>
 <i>Write your seed phrase down somewhere safe incase you need to recover your wallet:</i><br><br><br>
 {WALLET["Seed"]}
 </center>
 </html>""")
-            success_popup.setStandardButtons(QMessageBox.Ok)
-            success_popup.buttonClicked.connect(lambda: menuScreen())
-            success_popup.exec()
+                success_popup.setStandardButtons(QMessageBox.Ok)
+                success_popup.buttonClicked.connect(lambda: menuScreen())
+                success_popup.exec()
+            
+            make_eth_wallet = QPushButton("Make An Ethereum Wallet")
+            make_eth_wallet.clicked.connect(generateEthWallet)
+            layout.addWidget(make_eth_wallet)
 
         if not checkBitcoinWallet():
             makeBitcoinWallet()
@@ -355,22 +373,38 @@ def bitcoinScreen():
     title()
 
     def balance():
-        BTC_BALANCE = btc.balanceCheck()
-        CONFIRMED = BTC_BALANCE["confirmed_balance"]
-        PENDING = BTC_BALANCE["unconfirmed_balance"]
-
-        title = QLabel(f"""<html>
-Your current confirmed balance is: {CONFIRMED}.<br><br>
-Your current pending balance is: {PENDING}.<br><br><br>
-<i>Pending funds are still processing and are not able to be spent yet!<br>
-If your unconfirmed balance is negative it means that you have an out going transaction.</i>
+        try:
+            BTC_BALANCE = btc.balanceCheck()
+            if isinstance(BTC_BALANCE, dict):
+                CONFIRMED = BTC_BALANCE["confirmed_balance"]
+                PENDING = BTC_BALANCE["unconfirmed_balance"]
+                
+                balance_text = f"""<html>
+<b>Bitcoin Balance</b><br><br>
+Confirmed Balance: <b>{CONFIRMED} BTC</b><br>
+Pending Balance: <b>{PENDING} BTC</b><br><br>
+<i>Pending funds are still processing and cannot be spent yet!<br>
+If your unconfirmed balance is negative, it means you have an outgoing transaction.</i>
+</html>"""
+            else:
+                # Handle error case
+                balance_text = f"""<html>
+<b>Bitcoin Balance</b><br><br>
+<i style="color: red;">{BTC_BALANCE}</i>
+</html>"""
+                
+            balance_label = QLabel(balance_text)
+            balance_label.setAlignment(Qt.AlignCenter)
+            layout.addWidget(balance_label)
+        except Exception as e:
+            error_label = QLabel(f"""<html>
+<b>Bitcoin Balance</b><br><br>
+<i style="color: red;">Error loading balance: {str(e)}</i>
 </html>""")
-        title.setAlignment(Qt.AlignCenter)
-        layout.addWidget(title)
-    try:
-        balance()
-    except Exception:
-        pass
+            error_label.setAlignment(Qt.AlignCenter)
+            layout.addWidget(error_label)
+    
+    balance()
 
     def price():
         BTC_PRICE = btc.priceGrab()
@@ -422,10 +456,18 @@ ${BTC_PRICE}
                 return
             try:
                 tx_result = btc.sendBitcoin(receiver, amount)
-                success_popup = QMessageBox()
-                success_popup.setWindowTitle("Transaction Sent")
-                success_popup.setText(f"Transaction successful. Transaction ID:\n{tx_result}")
-                success_popup.exec()
+                
+                # Check if it's an error message
+                if tx_result.startswith("Error:") or tx_result.startswith("Network error:"):
+                    error_popup = QMessageBox()
+                    error_popup.setWindowTitle("Transaction Failed")
+                    error_popup.setText(tx_result)
+                    error_popup.exec()
+                else:
+                    success_popup = QMessageBox()
+                    success_popup.setWindowTitle("Transaction Sent")
+                    success_popup.setText(tx_result)
+                    success_popup.exec()
             except Exception as e:
                 error_popup = QMessageBox()
                 error_popup.setWindowTitle("Error")
@@ -469,25 +511,94 @@ def ethereumScreen():
     title()
 
     def balance():
-        ETH_BALANCE = eth.balanceCheck()
-
-        balance = QLabel(f"""<html>
-Your current confirmed balance is: {ETH_BALANCE} ETH.<br><br><br>
+        try:
+            ETH_BALANCE = eth.balanceCheck()
+            
+            # Check if it's an error message
+            if ETH_BALANCE.startswith("Error:"):
+                balance_text = f"""<html>
+<b>Ethereum Balance</b><br><br>
+<i style="color: red;">{ETH_BALANCE}</i>
+</html>"""
+            else:
+                # Parse the balance to show it nicely
+                try:
+                    balance_float = float(ETH_BALANCE.replace(',', ''))
+                    if balance_float == 0:
+                        balance_display = "0.00000000"
+                        status_text = "<i>Your wallet is empty. You can receive ETH at the address shown below.</i>"
+                    else:
+                        balance_display = f"{balance_float:,.8f}"
+                        status_text = "<i>Available for transactions</i>"
+                    
+                    balance_text = f"""<html>
+<b>Ethereum Balance</b><br><br>
+<b>{balance_display} ETH</b><br><br>
+{status_text}
+</html>"""
+                except ValueError:
+                    # Fallback if parsing fails
+                    balance_text = f"""<html>
+<b>Ethereum Balance</b><br><br>
+<b>{ETH_BALANCE} ETH</b>
+</html>"""
+            
+            balance_label = QLabel(balance_text)
+            balance_label.setAlignment(Qt.AlignCenter)
+            layout.addWidget(balance_label)
+        except Exception as e:
+            error_label = QLabel(f"""<html>
+<b>Ethereum Balance</b><br><br>
+<i style="color: red;">Error loading balance: {str(e)}</i>
 </html>""")
-        balance.setAlignment(Qt.AlignCenter)
-        layout.addWidget(balance)
+            error_label.setAlignment(Qt.AlignCenter)
+            layout.addWidget(error_label)
     balance()
 
+    def price():
+        ETH_PRICE = eth.priceGrab()
+
+        price = QLabel(f"""<html>
+<b>Current ETH Price: ${ETH_PRICE}</b>
+</html>""")
+        price.setAlignment(Qt.AlignCenter)
+        layout.addWidget(price)
+    price()
+    
+    def gasInfo():
+        """Display current gas price information"""
+        try:
+            current_gas = eth.getCurrentGasPrice()
+            estimates = eth.getGasFeeEstimates()
+            
+            gas_info_text = f"""<html>
+<b>Current Network Conditions:</b><br>
+Average Gas Price: {current_gas} Gwei<br><br>
+<b>Transaction Fee Estimates:</b><br>
+🐌 Slow: {estimates['slow']['fee_eth']:.6f} ETH (${estimates['slow']['fee_usd']:.2f}) - {estimates['slow']['estimated_time']}<br>
+⚡ Normal: {estimates['normal']['fee_eth']:.6f} ETH (${estimates['normal']['fee_usd']:.2f}) - {estimates['normal']['estimated_time']}<br>
+🚀 Fast: {estimates['fast']['fee_eth']:.6f} ETH (${estimates['fast']['fee_usd']:.2f}) - {estimates['fast']['estimated_time']}
+</html>"""
+            
+            gas_info = QLabel(gas_info_text)
+            gas_info.setAlignment(Qt.AlignCenter)
+            layout.addWidget(gas_info)
+        except Exception:
+            gas_info = QLabel("Gas price information temporarily unavailable")
+            gas_info.setAlignment(Qt.AlignCenter)
+            layout.addWidget(gas_info)
+    gasInfo()
+
     def sendEthereum():
-        pass
+        from PySide6.QtWidgets import QComboBox, QGroupBox, QHBoxLayout
+        
         receiver_label = QLabel("Enter the Ethereum address of who will be receiving the fund you wish to send")
         receiver_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(receiver_label)
 
         receiver_input = QLineEdit()
-        receiver_label.setAlignment(Qt.AlignCenter)
+        receiver_input.setAlignment(Qt.AlignCenter)
         layout.addWidget(receiver_input)
-
 
         amount_label = QLabel("Enter the amount of ETH you would like to send")
         amount_label.setAlignment(Qt.AlignCenter)
@@ -497,31 +608,168 @@ Your current confirmed balance is: {ETH_BALANCE} ETH.<br><br><br>
         amount_input.setAlignment(Qt.AlignCenter)
         layout.addWidget(amount_input)
 
-        def sendButtonLogic():
+        # Gas Speed Selection
+        gas_group = QGroupBox("Transaction Speed & Fee")
+        gas_layout = QVBoxLayout()
+        
+        gas_speed_label = QLabel("Select transaction speed:")
+        gas_layout.addWidget(gas_speed_label)
+        
+        gas_speed_combo = QComboBox()
+        gas_speed_combo.addItems(["Slow (Cheapest)", "Normal (Recommended)", "Fast (Urgent)"])
+        gas_speed_combo.setCurrentIndex(1)  # Default to Normal
+        gas_layout.addWidget(gas_speed_combo)
+        
+        # Fee estimate display
+        fee_estimate_label = QLabel("Estimated fee: Calculating...")
+        fee_estimate_label.setAlignment(Qt.AlignCenter)
+        gas_layout.addWidget(fee_estimate_label)
+        
+        gas_group.setLayout(gas_layout)
+        layout.addWidget(gas_group)
+        
+        def updateFeeEstimate():
+            """Update fee estimate when gas speed changes"""
             try:
-                TX = eth.createTx(receiver_input.text(), amount_input.text())
+                estimates = eth.getGasFeeEstimates()
+                speed_map = {0: 'slow', 1: 'normal', 2: 'fast'}
+                selected_speed = speed_map[gas_speed_combo.currentIndex()]
+                estimate = estimates[selected_speed]
+                
+                fee_text = f"""<html>
+<b>Estimated fee: {estimate['fee_eth']:.6f} ETH (${estimate['fee_usd']:.2f})</b><br>
+<i>Gas price: {estimate['gas_price_gwei']:.1f} Gwei</i><br>
+<i>Expected time: {estimate['estimated_time']}</i>
+</html>"""
+                fee_estimate_label.setText(fee_text)
+            except Exception:
+                fee_estimate_label.setText("Fee estimate: ~0.0004 ETH")
+        
+        # Update fee estimate when selection changes
+        gas_speed_combo.currentIndexChanged.connect(updateFeeEstimate)
+        # Initial fee estimate
+        updateFeeEstimate()
+
+        def sendButtonLogic():
+            receiver = receiver_input.text().strip()
+            amount_text = amount_input.text().strip()
+            
+            if not receiver:
+                error_popup = QMessageBox()
+                error_popup.setWindowTitle("Error")
+                error_popup.setText("Please enter a valid receiver address.")
+                error_popup.exec()
+                return
+                
+            try:
+                amount = float(amount_text)
+                if amount <= 0:
+                    raise ValueError
+            except ValueError:
+                error_popup = QMessageBox()
+                error_popup.setWindowTitle("Error")
+                error_popup.setText("Please enter a valid positive amount.")
+                error_popup.exec()
+                return
+                
+            # Get selected gas speed
+            speed_map = {0: 'slow', 1: 'normal', 2: 'fast'}
+            selected_gas_speed = speed_map[gas_speed_combo.currentIndex()]
+            
+            # Show confirmation dialog with transaction details
+            try:
+                estimates = eth.getGasFeeEstimates()
+                estimate = estimates[selected_gas_speed]
+                
+                confirmation_text = f"""<html>
+<b>Confirm Transaction</b><br><br>
+<b>To:</b> {receiver}<br>
+<b>Amount:</b> {amount} ETH<br>
+<b>Fee:</b> {estimate['fee_eth']:.6f} ETH (${estimate['fee_usd']:.2f})<br>
+<b>Total:</b> {amount + estimate['fee_eth']:.6f} ETH<br>
+<b>Speed:</b> {gas_speed_combo.currentText()}<br>
+<b>Expected time:</b> {estimate['estimated_time']}<br><br>
+<i>Do you want to proceed with this transaction?</i>
+</html>"""
+                
+                confirm_popup = QMessageBox()
+                confirm_popup.setWindowTitle("Confirm Transaction")
+                confirm_popup.setText(confirmation_text)
+                confirm_popup.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                confirm_popup.setDefaultButton(QMessageBox.No)
+                
+                if confirm_popup.exec() != QMessageBox.Yes:
+                    return
+                    
+            except Exception:
+                # Fallback confirmation without detailed estimates
+                confirm_popup = QMessageBox()
+                confirm_popup.setWindowTitle("Confirm Transaction")
+                confirm_popup.setText(f"Send {amount} ETH to {receiver}?")
+                confirm_popup.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                if confirm_popup.exec() != QMessageBox.Yes:
+                    return
+                
+            try:
+                TX = eth.createTx(receiver, amount, selected_gas_speed)
+                
+                # Check if transaction creation failed
+                if TX.startswith("Error"):
+                    error_popup = QMessageBox()
+                    error_popup.setWindowTitle("Error")
+                    error_popup.setText(TX)
+                    error_popup.exec()
+                    return
+                
                 ID = eth.broadcastTx(TX)
+                
+                # Check if broadcast failed
+                if ID.startswith("Error"):
+                    error_popup = QMessageBox()
+                    error_popup.setWindowTitle("Error")
+                    error_popup.setText(ID)
+                    error_popup.exec()
+                    return
 
                 success_popup = QMessageBox()
                 success_popup.setWindowTitle("Transaction Sent")
                 success_popup.setText(f"Transaction successful. Transaction ID:\n{ID}")
                 success_popup.exec()
 
-            except Exception:
+            except Exception as e:
                 error_popup = QMessageBox()
                 error_popup.setWindowTitle("Error")
-                error_popup.setText(f"An error occurred while sending the transaction!")
+                error_popup.setText(f"Failed to send transaction:\n{str(e)}")
                 error_popup.exec()
 
-
-
         send_button = QPushButton("Send Transaction")
-        send_button.setAlignment(Qt.AlignCenter)
         send_button.clicked.connect(sendButtonLogic)
         layout.addWidget(send_button)
 
-
     sendEthereum()
+
+    def address():
+        ETH_ADDRESS = getEthereumWallet()
+
+        address = QLabel(f"""<html>
+Your Ethereum Address Is: {ETH_ADDRESS}
+</html>""")
+        address.setAlignment(Qt.AlignCenter)
+        layout.addWidget(address)
+
+        copy_button = QPushButton("Copy Address To Clipboard")
+        def copyButton():
+            clipboard = QApplication.clipboard()
+            clipboard.setText(ETH_ADDRESS)
+        copy_button.clicked.connect(copyButton)
+        layout.addWidget(copy_button)
+    address()
+
+    def backToMenu():
+        back = QPushButton("Back To Menu")
+        back.clicked.connect(menuScreen)
+        layout.addWidget(back)
+    backToMenu()
 
 if __name__ == '__main__':
     startUp()

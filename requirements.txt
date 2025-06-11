@@ -1,8 +1,17 @@
+# General
 pyside6
 requests
-bip_utils
-web3
 python-dotenv
 cryptography
+pyinstaller
+
+# Bitcoin
 bitcoinlib
+
+# Ethereum
 eth-account
+web3
+
+# Monero
+monero-python
+moneropy

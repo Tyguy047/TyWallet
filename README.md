@@ -97,7 +97,6 @@ curl https://api.tywallet.xyz/prices/bitcoin
 - ✅ No authentication required
 - ✅ No rate limiting
 - ✅ CORS enabled for web applications
-- ✅ 99.9% uptime guarantee
 - ✅ Privacy-focused Tor endpoints
 
 ## 🛠️ Development
@@ -115,12 +114,6 @@ TyWallet/
 ├── CoinValueBackend/      # API server code
 │   ├── server.py          # Flask API server
 │   └── backend_requirements.txt
-├── ProjectWebsite/        # Official website
-│   ├── index.html         # Main website
-│   ├── styles.css         # Website styling
-│   ├── manifest.json      # Web app manifest
-│   ├── robots.txt         # SEO robots file
-│   └── sitemap.xml        # SEO sitemap
 └── assets/               # UI assets and icons
     └── coin_icons/       # Cryptocurrency icons
 ```
@@ -239,10 +232,8 @@ We welcome contributions! Here's how you can help:
 
 ## 📋 System Requirements
 
-- **Operating System**: Windows 10+, macOS 10.14+, or Linux
+- **Operating System**: MacOS, or Linux
 - **Python**: 3.13.4 or higher
-- **Memory**: 512MB RAM minimum
-- **Storage**: 100MB available disk space
 - **Network**: Internet connection for price updates and transactions
 
 ## 🚨 Troubleshooting
@@ -274,17 +265,8 @@ TyWallet is open source software released under the [MIT License](LICENSE).
 
 ## 🎯 Roadmap
 
-### Coming Soon
-- 📱 Mobile applications (Android & iOS)
-- 🔔 Price alerts and notifications
-- 📊 Advanced portfolio analytics
-- 🛡️ Hardware wallet integration
-- 🌍 Multi-language support
 
 ### Long-term Goals
-- 🏪 DeFi integration
-- 🔒 Multi-signature wallet support
-- 📡 Advanced API features
 - 🎨 Customizable themes
 
 ## 💖 Support TyWallet
