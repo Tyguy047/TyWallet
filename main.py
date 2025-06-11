@@ -568,48 +568,77 @@ def ethereumScreen():
     title()
 
     def balance():
-        try:
-            ETH_BALANCE = eth.balanceCheck()
-            
-            # Check if it's an error message
-            if ETH_BALANCE.startswith("Error:"):
-                balance_text = f"""<html>
-<b>Ethereum Balance</b><br><br>
-<i style="color: red;">{ETH_BALANCE}</i>
-</html>"""
-            else:
-                # Parse the balance to show it nicely
-                try:
-                    balance_float = float(ETH_BALANCE.replace(',', ''))
-                    if balance_float == 0:
-                        balance_display = "0.00000000"
-                        status_text = "<i>Your wallet is empty. You can receive ETH at the address shown below.</i>"
-                    else:
-                        balance_display = f"{balance_float:,.8f}"
-                        status_text = "<i>Available for transactions</i>"
-                    
+        def refreshBalance():
+            """Force refresh the balance display"""
+            try:
+                # Clear any potential cached data by forcing a fresh check
+                ETH_BALANCE = eth.balanceCheck()
+                
+                # Debug output
+                print(f"Balance check returned: {ETH_BALANCE}")
+                print(f"Balance type: {type(ETH_BALANCE)}")
+                
+                # Check if it's an error message
+                if isinstance(ETH_BALANCE, str) and ETH_BALANCE.startswith("Error:"):
                     balance_text = f"""<html>
+<b>Ethereum Balance</b><br><br>
+<i style="color: red;">{ETH_BALANCE}</i><br><br>
+<button onclick="location.reload()">Refresh Balance</button>
+</html>"""
+                else:
+                    # Parse the balance to show it nicely
+                    try:
+                        # Remove any commas and convert to float
+                        balance_str = str(ETH_BALANCE).replace(',', '')
+                        balance_float = float(balance_str)
+                        
+                        print(f"Parsed balance: {balance_float}")
+                        
+                        if balance_float == 0:
+                            balance_display = "0.00000000"
+                            status_text = "<i>Your wallet is empty. You can receive ETH at the address shown below.</i>"
+                        else:
+                            balance_display = f"{balance_float:,.8f}"
+                            status_text = "<i>Available for transactions</i>"
+                        
+                        balance_text = f"""<html>
 <b>Ethereum Balance</b><br><br>
 <b>{balance_display} ETH</b><br><br>
 {status_text}
 </html>"""
-                except ValueError:
-                    # Fallback if parsing fails
-                    balance_text = f"""<html>
+                    except (ValueError, TypeError) as e:
+                        print(f"Error parsing balance: {e}")
+                        # Fallback if parsing fails
+                        balance_text = f"""<html>
 <b>Ethereum Balance</b><br><br>
-<b>{ETH_BALANCE} ETH</b>
+<b>{ETH_BALANCE} ETH</b><br><br>
+<i>Raw balance data - if this shows 0 but you have funds, try refreshing</i>
 </html>"""
-            
-            balance_label = QLabel(balance_text)
-            balance_label.setAlignment(Qt.AlignCenter)
-            layout.addWidget(balance_label)
-        except Exception as e:
-            error_label = QLabel(f"""<html>
+                
+                balance_label.setText(balance_text)
+                
+            except Exception as e:
+                print(f"Error in refreshBalance: {e}")
+                error_text = f"""<html>
 <b>Ethereum Balance</b><br><br>
-<i style="color: red;">Error loading balance: {str(e)}</i>
-</html>""")
-            error_label.setAlignment(Qt.AlignCenter)
-            layout.addWidget(error_label)
+<i style="color: red;">Error loading balance: {str(e)}</i><br><br>
+<i>If you have funds but see this error, check your internet connection</i>
+</html>"""
+                balance_label.setText(error_text)
+        
+        # Create the balance label
+        balance_label = QLabel("Loading balance...")
+        balance_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(balance_label)
+        
+        # Add refresh button
+        refresh_button = QPushButton("Refresh Balance")
+        refresh_button.clicked.connect(refreshBalance)
+        layout.addWidget(refresh_button)
+        
+        # Initial balance load
+        refreshBalance()
+        
     balance()
 
     def price():

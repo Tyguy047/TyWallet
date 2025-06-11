@@ -70,17 +70,14 @@ def balanceCheck():
     if not ADDRESS.startswith('0x') or len(ADDRESS) != 42:
         return "Error: Invalid Ethereum address format!"
 
-    # Try multiple API endpoints for reliability
+    print(f"Checking balance for address: {ADDRESS}")
+
+    # Try multiple API endpoints for reliability - all free, no API key required
     api_endpoints = [
         {
-            'name': 'Alchemy',
-            'url': f"https://eth-mainnet.alchemyapi.io/v2/demo/getBalance?address={ADDRESS}&block=latest",
-            'parser': lambda data: int(data.get('result', '0x0'), 16) / 1e18 if data.get('result') else 0
-        },
-        {
-            'name': 'Etherscan (No Key)',
-            'url': f"https://api.etherscan.io/api?module=account&action=balance&address={ADDRESS}&tag=latest",
-            'parser': lambda data: int(data['result']) / 1e18 if data.get('status') == '1' else 0
+            'name': 'Blockscout',
+            'url': f"https://eth.blockscout.com/api?module=account&action=balance&address={ADDRESS}",
+            'parser': lambda data: int(data['result']) / 1e18 if data.get('status') == '1' and data.get('result') else 0
         },
         {
             'name': 'Blockcypher',
@@ -98,13 +95,19 @@ def balanceCheck():
     
     for endpoint in api_endpoints:
         try:
+            print(f"Trying {endpoint['name']}...")
             headers = {'User-Agent': 'TyWallet/1.0'}
             response = requests.get(endpoint['url'], timeout=15, headers=headers)
             response.raise_for_status()
             data = response.json()
             
+            print(f"Response from {endpoint['name']}: {data}")
+            
             balance = endpoint['parser'](data)
+            print(f"Parsed balance from {endpoint['name']}: {balance}")
+            
             if balance is not None and balance >= 0:
+                print(f"Returning balance: {balance:,.8f}")
                 return f"{balance:,.8f}"
                 
         except requests.RequestException as e:
@@ -120,22 +123,26 @@ def balanceCheck():
             print(f"Unexpected error with {endpoint['name']}: {e}")
             continue
 
-    # If all APIs fail, try a simple Web3 RPC call as last resort
+    # If all APIs fail, try Web3 RPC calls as last resort
+    print("All APIs failed, trying RPC endpoints...")
     try:
         from web3 import Web3
         # Use a public RPC endpoint
         rpc_urls = [
             "https://rpc.ankr.com/eth",
             "https://ethereum.publicnode.com",
-            "https://eth.llamarpc.com"
+            "https://eth.llamarpc.com",
+            "https://cloudflare-eth.com"
         ]
         
         for rpc_url in rpc_urls:
             try:
-                w3 = Web3(Web3.HTTPProvider(rpc_url))
+                print(f"Trying RPC: {rpc_url}")
+                w3 = Web3(Web3.HTTPProvider(rpc_url, request_kwargs={'timeout': 15}))
                 if w3.is_connected():
                     balance_wei = w3.eth.get_balance(ADDRESS)
                     balance_eth = w3.from_wei(balance_wei, 'ether')
+                    print(f"RPC balance: {float(balance_eth):,.8f}")
                     return f"{float(balance_eth):,.8f}"
             except Exception as e:
                 print(f"RPC {rpc_url} failed: {e}")
@@ -144,7 +151,7 @@ def balanceCheck():
     except Exception as e:
         print(f"Web3 fallback failed: {e}")
 
-    return f"Error: Could not fetch balance from any service. All APIs are currently unavailable."
+    return f"Error: Could not fetch balance from any service. All APIs are currently unavailable. Last error: {last_error}"
 
 def createTx(receiver, amount, gas_speed='normal'):
 
@@ -353,19 +360,29 @@ def createTx(receiver, amount, gas_speed='normal'):
             'gas': 21000,  # Standard gas limit for ETH transfer
             'gasPrice': fee,  # Gas price in wei from smartGas()
             'nonce': current_nonce,  # Use fetched nonce
+            'chainId': 1,  # Ethereum mainnet chain ID
         }
         
         # Sign transaction offline
         w3 = Web3()  # Create Web3 instance without provider for offline signing
         signed_tx = w3.eth.account.sign_transaction(tx, private_key)
         
-        return signed_tx.rawTransaction.hex()
+        # Ensure the raw transaction has 0x prefix
+        raw_tx_hex = signed_tx.raw_transaction.hex()
+        if not raw_tx_hex.startswith('0x'):
+            raw_tx_hex = '0x' + raw_tx_hex
+            
+        return raw_tx_hex
         
     except Exception as e:
         return f"Error creating transaction: {str(e)}"
 
 def broadcastTx(TX):
     """Broadcast transaction with multiple RPC endpoint fallbacks"""
+    # Ensure TX has 0x prefix
+    if not TX.startswith('0x'):
+        TX = '0x' + TX
+    
     rpc_endpoints = [
         'https://ethereum.publicnode.com',
         'https://eth.drpc.org',
@@ -385,13 +402,16 @@ def broadcastTx(TX):
     
     for endpoint in rpc_endpoints:
         try:
+            print(f"Broadcasting to {endpoint} with TX: {TX[:20]}...")  # Debug log
             response = requests.post(endpoint, json=payload, headers=headers, timeout=15)
             if response.status_code == 200:
                 result = response.json()
+                print(f"Response: {result}")  # Debug log
                 if 'result' in result:
                     return result['result']
                 elif 'error' in result:
                     error_msg = result['error'].get('message', 'Unknown error')
+                    print(f"RPC Error: {error_msg}")  # Debug log
                     # Skip to next endpoint for certain errors
                     if 'nonce too low' in error_msg.lower() or 'already known' in error_msg.lower():
                         last_error = error_msg
@@ -399,6 +419,7 @@ def broadcastTx(TX):
                     return f"Transaction error: {error_msg}"
             last_error = f"HTTP {response.status_code}"
         except Exception as e:
+            print(f"Exception with {endpoint}: {e}")  # Debug log
             last_error = str(e)
             continue
 
