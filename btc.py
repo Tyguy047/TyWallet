@@ -34,10 +34,32 @@ def balanceCheck():
             print(f"Error reading Bitcoin address from config: {e}")
             return None
 
+    # Sync wallet address with config first
+    syncWalletAddress()
+    
     ADDRESS = addressGrab()
     if not ADDRESS:
         return "Error: No Bitcoin address configured!"
 
+    # First try to get balance from wallet instance (more reliable for spending)
+    try:
+        wallet = getWalletInstance()
+        if wallet:
+            wallet.scan()  # Rescan for UTXOs
+            wallet_balance = wallet.balance()
+            wallet_balance_btc = wallet_balance / 1e8
+            
+            # If wallet has balance, use it as primary source
+            if wallet_balance > 0:
+                return {
+                    "confirmed_balance": f"{wallet_balance_btc:.8f}",
+                    "unconfirmed_balance": "0.00000000",
+                    "source": "wallet"
+                }
+    except Exception as e:
+        print(f"Wallet balance check error: {e}")
+
+    # Fallback to external API
     try:
         url = f"https://blockstream.info/api/address/{ADDRESS}"
         response = requests.get(url, timeout=10)
@@ -49,7 +71,8 @@ def balanceCheck():
         
         return {
             "confirmed_balance": f"{confirmed / 1e8:,.8f}",
-            "unconfirmed_balance": f"{unconfirmed / 1e8:,.8f}"
+            "unconfirmed_balance": f"{unconfirmed / 1e8:,.8f}",
+            "source": "api"
         }
     except requests.RequestException as e:
         print(f"Balance check error: {e}")
@@ -83,10 +106,12 @@ def walletGen():
         wallet = Wallet.create(wallet_name, keys=seed_phrase, network='bitcoin')
         print("Bitcoin mainnet wallet created successfully!")
 
+        wallet_address = str(wallet.get_key().address)
+        
         wallet_data = {
             "Name": str(wallet.name),
             "Network": str(wallet.network.name),
-            "Address": str(wallet.get_key().address),
+            "Address": wallet_address,
             "Public_Key": str(wallet.get_key().public()),
             "Private_Key_WIF": str(wallet.get_key().wif),
             "Seed": str(seed_phrase),
@@ -101,6 +126,19 @@ def walletGen():
         wallet_file = os.path.join(wallets_dir, f"{wallet.name}_bitcoin_mainnet.json")
         with open(wallet_file, 'w', encoding='utf-8') as f:
             json.dump(wallet_data, f, indent=2)
+        
+        # Update config.json with the correct address
+        config_path = os.path.expanduser('~/TyWallet/config.json')
+        try:
+            with open(config_path, 'r+', encoding='utf-8') as config:
+                data = json.load(config)
+                data["addresses"]["Bitcoin"] = wallet_address
+                config.seek(0)
+                json.dump(data, config, indent=4)
+                config.truncate()
+            print(f"Updated config with wallet address: {wallet_address}")
+        except Exception as e:
+            print(f"Warning: Could not update config file: {e}")
         
         print(f"Wallet saved to: {wallet_file}")
         return wallet_data
@@ -119,32 +157,99 @@ def getWalletInstance():
         return None
 
 def broadcastTx(tx_hex):
-    """Broadcast a Bitcoin transaction to the network"""
+    """Broadcast a Bitcoin transaction to the network with multiple endpoint fallbacks"""
     if not tx_hex:
         return "Error: No transaction data provided"
-        
-    url = "https://blockstream.info/api/tx"
-    headers = {'Content-Type': 'text/plain'}
     
-    try:
-        response = requests.post(url, data=tx_hex, headers=headers, timeout=30)
-        response.raise_for_status()
-        return response.text  # Returns the transaction ID
-    except requests.RequestException as e:
-        print(f"Broadcast error: {e}")
-        return f"Broadcast failed: Network error - {str(e)}"
-    except Exception as e:
-        print(f"Unexpected broadcast error: {e}")
-        return f"Broadcast failed: {str(e)}"
+    # Multiple broadcast endpoints for better reliability - mempool.space prioritized
+    endpoints = [
+        {
+            'name': 'Mempool.space',
+            'url': 'https://mempool.space/api/tx',
+            'headers': {'Content-Type': 'text/plain'},
+            'method': 'POST', 
+            'data': tx_hex
+        },
+        {
+            'name': 'Blockstream',
+            'url': 'https://blockstream.info/api/tx',
+            'headers': {'Content-Type': 'text/plain'},
+            'method': 'POST',
+            'data': tx_hex
+        },
+        {
+            'name': 'BlockCypher',
+            'url': 'https://api.blockcypher.com/v1/btc/main/txs/push',
+            'headers': {'Content-Type': 'application/json'},
+            'method': 'POST',
+            'data': '{"tx": "' + tx_hex + '"}'
+        }
+    ]
+    
+    last_error = None
+    
+    for endpoint in endpoints:
+        try:
+            print(f"Trying to broadcast via {endpoint['name']}...")
+            
+            if endpoint['name'] == 'BlockCypher':
+                response = requests.post(
+                    endpoint['url'], 
+                    data=endpoint['data'],
+                    headers=endpoint['headers'], 
+                    timeout=30
+                )
+            else:
+                response = requests.post(
+                    endpoint['url'], 
+                    data=endpoint['data'],
+                    headers=endpoint['headers'], 
+                    timeout=30
+                )
+            
+            response.raise_for_status()
+            
+            # Parse response based on endpoint
+            if endpoint['name'] == 'BlockCypher':
+                result = response.json()
+                if result.get('hash'):
+                    print(f"Successfully broadcast via {endpoint['name']}")
+                    return result['hash']
+                else:
+                    last_error = f"{endpoint['name']}: {result.get('error', 'Unknown error')}"
+            else:
+                result = response.text.strip()
+                if result and len(result) == 64:  # Bitcoin transaction ID length
+                    print(f"Successfully broadcast via {endpoint['name']}")
+                    return result
+                else:
+                    last_error = f"{endpoint['name']}: Invalid response - {result}"
+            
+        except requests.RequestException as e:
+            last_error = f"{endpoint['name']} network error: {str(e)}"
+            print(f"Broadcast failed via {endpoint['name']}: {e}")
+            continue
+        except Exception as e:
+            last_error = f"{endpoint['name']} error: {str(e)}"
+            print(f"Unexpected error with {endpoint['name']}: {e}")
+            continue
+    
+    return f"Broadcast failed: All endpoints failed. Last error: {last_error}"
 
-def smartFeeCalc():
-    """Calculate smart fee based on network conditions"""
+def smartFeeCalc(balance_satoshi=None):
+    """Calculate smart fee based on network conditions and balance"""
     try:
         # Try mempool.space first (most reliable)
         url = "https://mempool.space/api/v1/fees/recommended"
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
+        
+        # For very small balances, use the economy fee rate
+        if balance_satoshi and balance_satoshi < 5000:  # Less than 0.00005 BTC
+            economy_fee = data.get('economyFee', 1)
+            return max(economy_fee, 1)  # Minimum 1 sat/vB for dust amounts
+        
         return max(data.get('fastestFee', 20), 10)  # Minimum 10 sat/vB
     except:
         try:
@@ -153,10 +258,18 @@ def smartFeeCalc():
             response = requests.get(url, timeout=10)
             response.raise_for_status()
             data = response.json()
+            
+            # For small balances, use a lower fee target
+            if balance_satoshi and balance_satoshi < 5000:
+                # Use 144 block target (about 24 hours) for small amounts
+                return max(int(data.get('144', 1)), 1)
+            
             # Get 6 block target fee (about 1 hour)
             return max(int(data.get('6', 20)), 10)
         except:
-            # Conservative fallback
+            # Conservative fallback - lower for small balances
+            if balance_satoshi and balance_satoshi < 5000:
+                return 2  # 2 sat/vB for small amounts
             return 25  # 25 sat/vB
 
 def validateAddress(address):
@@ -188,9 +301,8 @@ def sendBitcoin(RECEIVER_ADDRESS, AMOUNT):
         if AMOUNT > 21000000:  # More than total Bitcoin supply
             return "Error: Amount exceeds maximum possible Bitcoin supply"
         
-        # Get dynamic fee
-        FEE_PER_BYTE = smartFeeCalc()
-        print(f"Using fee rate: {FEE_PER_BYTE} sat/vB")
+        # Sync wallet address with config first
+        syncWalletAddress()
         
         # Get wallet instance
         wallet = getWalletInstance()
@@ -201,21 +313,33 @@ def sendBitcoin(RECEIVER_ADDRESS, AMOUNT):
         print("Scanning for available UTXOs...")
         wallet.scan()
         
-        # Check wallet balance
+        # Check wallet balance first
         wallet_balance = wallet.balance()
+        
+        # Get dynamic fee based on balance
+        FEE_PER_BYTE = smartFeeCalc(wallet_balance)
+        print(f"Using fee rate: {FEE_PER_BYTE} sat/vB")
+        
         amount_satoshi = int(AMOUNT * 1e8)
         
-        if wallet_balance < amount_satoshi:
-            return f"Error: Insufficient balance. Available: {wallet_balance/1e8:.8f} BTC, Required: {AMOUNT:.8f} BTC"
-        
-        # Estimate transaction size and fee
+        # Estimate transaction size and fee first
         estimated_tx_size = 250  # Approximate size in bytes for 1 input, 2 outputs
         fee_total = FEE_PER_BYTE * estimated_tx_size
         
+        # Check if balance is too small for any transaction
+        if wallet_balance <= fee_total:
+            return f"Error: Balance too small for any transaction. Available: {wallet_balance/1e8:.8f} BTC, Minimum fee required: {fee_total/1e8:.8f} BTC. Consider consolidating UTXOs or waiting for lower network fees."
+        
+        # Calculate maximum sendable amount
+        max_sendable_satoshi = wallet_balance - fee_total
+        max_sendable_btc = max_sendable_satoshi / 1e8
+        
+        if wallet_balance < amount_satoshi:
+            return f"Error: Insufficient balance. Available: {wallet_balance/1e8:.8f} BTC, Required: {AMOUNT:.8f} BTC, Maximum sendable: {max_sendable_btc:.8f} BTC"
+        
         # Check if we have enough for amount + fee
         if wallet_balance < (amount_satoshi + fee_total):
-            max_sendable = (wallet_balance - fee_total) / 1e8
-            return f"Error: Insufficient balance for amount + fees. Maximum sendable: {max_sendable:.8f} BTC"
+            return f"Error: Insufficient balance for amount + fees. Available: {wallet_balance/1e8:.8f} BTC, Required (amount + fee): {(amount_satoshi + fee_total)/1e8:.8f} BTC, Maximum sendable: {max_sendable_btc:.8f} BTC"
         
         print(f"Creating transaction: {AMOUNT} BTC to {RECEIVER_ADDRESS}")
         print(f"Estimated fee: {fee_total/1e8:.8f} BTC ({FEE_PER_BYTE} sat/vB)")
@@ -282,3 +406,124 @@ def getTransactionHistory(limit=10):
     except Exception as e:
         print(f"Error fetching transaction history: {e}")
         return []
+
+def sweepBitcoin(RECEIVER_ADDRESS):
+    """Send all available Bitcoin (minus fees) to another address"""
+    try:
+        # Validate inputs
+        if not validateAddress(RECEIVER_ADDRESS):
+            return "Error: Invalid receiver address format"
+        
+        # Sync wallet address with config first
+        syncWalletAddress()
+        
+        # Get wallet instance
+        wallet = getWalletInstance()
+        if not wallet:
+            return "Error: Could not access Bitcoin wallet"
+        
+        # Rescan for UTXOs
+        print("Scanning for available UTXOs...")
+        wallet.scan()
+        
+        # Check wallet balance
+        wallet_balance = wallet.balance()
+        
+        if wallet_balance <= 0:
+            return "Error: No balance available to sweep"
+        
+        # Get dynamic fee based on balance
+        FEE_PER_BYTE = smartFeeCalc(wallet_balance)
+        print(f"Using fee rate: {FEE_PER_BYTE} sat/vB")
+        
+        # Estimate transaction size and fee
+        estimated_tx_size = 250  # Approximate size in bytes for 1 input, 2 outputs
+        fee_total = FEE_PER_BYTE * estimated_tx_size
+        
+        # Check if balance is too small for any transaction
+        if wallet_balance <= fee_total:
+            return f"Error: Balance too small for any transaction. Available: {wallet_balance/1e8:.8f} BTC, Minimum fee required: {fee_total/1e8:.8f} BTC"
+        
+        # Calculate amount to send (all balance minus fee)
+        amount_to_send = wallet_balance - fee_total
+        
+        print(f"Sweeping wallet: {amount_to_send/1e8:.8f} BTC to {RECEIVER_ADDRESS}")
+        print(f"Fee: {fee_total/1e8:.8f} BTC ({FEE_PER_BYTE} sat/vB)")
+        
+        # Create and send transaction
+        tx = wallet.send_to(
+            RECEIVER_ADDRESS,
+            amount_to_send,
+            fee=fee_total,
+            min_confirms=0  # Allow unconfirmed UTXOs
+        )
+        
+        if not tx:
+            return "Error: Failed to create sweep transaction"
+        
+        tx_hex = tx.as_hex()
+        if not tx_hex:
+            return "Error: Failed to serialize transaction"
+        
+        print(f"Sweep transaction created successfully. Broadcasting...")
+        result = broadcastTx(tx_hex)
+        
+        if result.startswith("Error") or result.startswith("Broadcast failed"):
+            return result
+        
+        return f"Sweep transaction sent successfully! TXID: {result}. Sent: {amount_to_send/1e8:.8f} BTC"
+        
+    except Exception as e:
+        print(f"Error in sweepBitcoin: {e}")
+        return f"Error: Failed to sweep Bitcoin - {str(e)}"
+
+def syncWalletAddress():
+    """Sync the wallet address in config.json with the address that has funds"""
+    try:
+        wallet = getWalletInstance()
+        if not wallet:
+            return False
+        
+        wallet.scan()  # Rescan for UTXOs
+        config_path = os.path.expanduser('~/TyWallet/config.json')
+        
+        # Find the address with the highest balance
+        best_address = None
+        best_balance = 0
+        
+        for key in wallet.keys():
+            if key.balance > best_balance:
+                best_balance = key.balance
+                best_address = key.address
+        
+        # If no address has balance, use the main wallet address
+        if not best_address:
+            best_address = str(wallet.get_key().address)
+            
+        # Read current config
+        with open(config_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Check if address needs updating
+        config_address = data["addresses"].get("Bitcoin")
+        if config_address != best_address:
+            print(f"Address mismatch detected!")
+            print(f"Config address: {config_address}")
+            print(f"Best wallet address (with balance): {best_address}")
+            print(f"Balance on this address: {best_balance/1e8:.8f} BTC")
+            print(f"Updating config...")
+            
+            # Update config with address that has funds
+            data["addresses"]["Bitcoin"] = best_address
+            
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=4)
+            
+            print(f"Config updated with funded address: {best_address}")
+            return True
+        
+        return False
+        
+    except Exception as e:
+        print(f"Error syncing wallet address: {e}")
+        return False

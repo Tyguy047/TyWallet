@@ -490,6 +490,49 @@ ${BTC_PRICE}
 
         send_button.clicked.connect(on_send_click)
         layout.addWidget(send_button)
+        
+        # Add sweep button for small balances
+        sweep_button = QPushButton("Send Maximum Amount (Sweep Wallet)")
+        
+        def on_sweep_click():
+            receiver = receiver_input.text().strip()
+            if not receiver:
+                error_popup = QMessageBox()
+                error_popup.setWindowTitle("Error")
+                error_popup.setText("Please enter a valid receiver address.")
+                error_popup.exec()
+                return
+            
+            # Confirm sweep action
+            confirm_popup = QMessageBox()
+            confirm_popup.setWindowTitle("Confirm Sweep")
+            confirm_popup.setText(f"This will send ALL available Bitcoin (minus transaction fees) to:\n{receiver}\n\nAre you sure?")
+            confirm_popup.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            confirm_popup.setDefaultButton(QMessageBox.StandardButton.No)
+            
+            if confirm_popup.exec() == QMessageBox.StandardButton.Yes:
+                try:
+                    tx_result = btc.sweepBitcoin(receiver)
+                    
+                    # Check if it's an error message
+                    if tx_result.startswith("Error:") or tx_result.startswith("Network error:"):
+                        error_popup = QMessageBox()
+                        error_popup.setWindowTitle("Sweep Failed")
+                        error_popup.setText(tx_result)
+                        error_popup.exec()
+                    else:
+                        success_popup = QMessageBox()
+                        success_popup.setWindowTitle("Sweep Successful")
+                        success_popup.setText(tx_result)
+                        success_popup.exec()
+                except Exception as e:
+                    error_popup = QMessageBox()
+                    error_popup.setWindowTitle("Error")
+                    error_popup.setText(f"Failed to sweep wallet:\n{str(e)}")
+                    error_popup.exec()
+        
+        sweep_button.clicked.connect(on_sweep_click)
+        layout.addWidget(sweep_button)
     sendBitcoin()
 
     def address():
