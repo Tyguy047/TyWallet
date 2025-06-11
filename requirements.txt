@@ -11,7 +11,12 @@ bitcoinlib
 # Ethereum
 eth-account
 web3
+mnemonic
+eth-keys
+eth-utils
+hexbytes
+rlp
 
 # Monero
-monero-python
-moneropy
+# monero-python
+# moneropy

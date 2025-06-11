@@ -322,26 +322,40 @@ def menuScreen():
 
         def makeEthereumWallet():
             def generateEthWallet():
-                WALLET = eth.walletGen()
+                try:
+                    WALLET = eth.walletGen()
+                    
+                    # Check if wallet generation failed
+                    if "error" in str(WALLET).lower() or not WALLET or not WALLET.get("Public_Key"):
+                        error_popup = QMessageBox()
+                        error_popup.setWindowTitle("Error")
+                        error_popup.setText(f"Failed to generate Ethereum wallet. Please try again.")
+                        error_popup.exec()
+                        return
 
-                with open(config_path, 'r+', encoding='utf-8') as config:
-                    data = json.load(config)
-                    data["coins"]["Ethereum"] = True
-                    data["addresses"]["Ethereum"] = WALLET["Public_Key"]
-                    config.seek(0)
-                    json.dump(data, config, indent=4)
-                    config.truncate()
-                success_popup = QMessageBox()
-                success_popup.setWindowTitle("Success")
-                success_popup.setText(f"""<html><center>
+                    with open(config_path, 'r+', encoding='utf-8') as config:
+                        data = json.load(config)
+                        data["coins"]["Ethereum"] = True
+                        data["addresses"]["Ethereum"] = WALLET["Public_Key"]
+                        config.seek(0)
+                        json.dump(data, config, indent=4)
+                        config.truncate()
+                    success_popup = QMessageBox()
+                    success_popup.setWindowTitle("Success")
+                    success_popup.setText(f"""<html><center>
 <b>Wallet successfully generated!</b><br><br>
 <i>Write your seed phrase down somewhere safe incase you need to recover your wallet:</i><br><br><br>
 {WALLET["Seed"]}
 </center>
 </html>""")
-                success_popup.setStandardButtons(QMessageBox.Ok)
-                success_popup.buttonClicked.connect(lambda: menuScreen())
-                success_popup.exec()
+                    success_popup.setStandardButtons(QMessageBox.Ok)
+                    success_popup.buttonClicked.connect(lambda: menuScreen())
+                    success_popup.exec()
+                except Exception as e:
+                    error_popup = QMessageBox()
+                    error_popup.setWindowTitle("Error")
+                    error_popup.setText(f"Failed to generate Ethereum wallet:\n{str(e)}")
+                    error_popup.exec()
             
             make_eth_wallet = QPushButton("Make An Ethereum Wallet")
             make_eth_wallet.clicked.connect(generateEthWallet)

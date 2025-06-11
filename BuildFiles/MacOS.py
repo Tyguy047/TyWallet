@@ -166,6 +166,20 @@ def build_app():
         "--collect-data", "bitcoinlib",
         "--copy-metadata", "bitcoinlib",
         
+        # Add ethereum related data files and metadata
+        "--collect-data", "eth_account",
+        "--copy-metadata", "eth_account",
+        "--collect-data", "web3",
+        "--copy-metadata", "web3",
+        "--collect-data", "eth_keys",
+        "--copy-metadata", "eth_keys",
+        "--collect-data", "eth_utils",
+        "--copy-metadata", "eth_utils",
+        "--collect-data", "cytoolz",
+        "--copy-metadata", "cytoolz",
+        "--collect-data", "mnemonic",
+        "--copy-metadata", "mnemonic",
+        
         # macOS specific options
         "--osx-bundle-identifier", BUNDLE_ID,
         
@@ -184,6 +198,29 @@ def build_app():
         "--hidden-import", "bitcoinlib",
         "--hidden-import", "web3",
         "--hidden-import", "eth_account",
+        "--hidden-import", "eth_account.account",
+        "--hidden-import", "eth_account.hdaccount",
+        "--hidden-import", "eth_account.hdaccount.deterministic",
+        "--hidden-import", "eth_account.hdaccount.mnemonic",
+        "--hidden-import", "eth_keys",
+        "--hidden-import", "eth_keys.backends",
+        "--hidden-import", "eth_keys.backends.native",
+        "--hidden-import", "eth_utils",
+        "--hidden-import", "cytoolz",
+        "--hidden-import", "mnemonic",
+        "--hidden-import", "eth_hash",
+        "--hidden-import", "eth_typing",
+        "--hidden-import", "hexbytes",
+        "--hidden-import", "rlp",
+        "--hidden-import", "pysha3",
+        "--hidden-import", "Crypto",
+        "--hidden-import", "Crypto.Hash",
+        "--hidden-import", "Crypto.Hash.keccak",
+        "--hidden-import", "coincurve",
+        "--hidden-import", "coincurve._libsecp256k1",
+        "--hidden-import", "bitarray",
+        "--hidden-import", "eth_abi",
+        "--hidden-import", "websockets",
         
         main_script_abs
     ]

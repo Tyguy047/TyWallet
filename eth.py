@@ -1,5 +1,6 @@
 import requests
-import web3
+import time
+from web3 import Web3
 from eth_account import Account
 import os
 import json
@@ -14,34 +15,40 @@ def priceGrab():
         return "Error: Price data could not be fetched!"
 
 def walletGen():
-    wallet_dir = os.path.expanduser("~/TyWallet")
-    os.makedirs(wallet_dir, exist_ok=True)
-    
-    wallet_file = os.path.join(wallet_dir, "Ethereum_Wallet.json")
-    if not os.path.exists(wallet_file):
-        with open(wallet_file, 'w') as f:
-            json.dump({}, f, indent=4)
+    try:
+        wallet_dir = os.path.expanduser("~/TyWallet")
+        os.makedirs(wallet_dir, exist_ok=True)
+        
+        wallet_file = os.path.join(wallet_dir, "Ethereum_Wallet.json")
+        if not os.path.exists(wallet_file):
+            with open(wallet_file, 'w') as f:
+                json.dump({}, f, indent=4)
 
-    Account.enable_unaudited_hdwallet_features()
+        Account.enable_unaudited_hdwallet_features()
 
-    # Generate a new account from a mnemonic seed
-    account, mnemonic = Account.create_with_mnemonic()
+        # Generate a new account from a mnemonic seed
+        account, mnemonic = Account.create_with_mnemonic()
 
-    with open(wallet_file, 'r+') as f:
-        wallet_data = json.load(f)
-        wallet_data[account.address] = {
+        with open(wallet_file, 'r+') as f:
+            wallet_data = json.load(f)
+            wallet_data[account.address] = {
+                "Private_Key": account.key.hex(),
+                "Public_Key": account.address
+            }
+            f.seek(0)
+            json.dump(wallet_data, f, indent=4)
+            f.truncate()
+
+        print("Ethereum mainnet wallet created successfully!")
+        
+        return {
             "Private_Key": account.key.hex(),
-            "Public_Key": account.address
+            "Public_Key": account.address,
+            "Seed": mnemonic
         }
-        f.seek(0)
-        json.dump(wallet_data, f, indent=4)
-        f.truncate()
-
-    return {
-        "Private_Key": account.key.hex(),
-        "Public_Key": account.address,
-        "Seed": mnemonic
-    }
+    except Exception as e:
+        print(f"Error generating Ethereum wallet: {e}")
+        return {"error": f"Failed to generate Ethereum wallet: {str(e)}"}
 
 def balanceCheck():
     def addressGrab():
@@ -349,7 +356,7 @@ def createTx(receiver, amount, gas_speed='normal'):
         }
         
         # Sign transaction offline
-        w3 = web3.Web3()  # Create Web3 instance without provider for offline signing
+        w3 = Web3()  # Create Web3 instance without provider for offline signing
         signed_tx = w3.eth.account.sign_transaction(tx, private_key)
         
         return signed_tx.rawTransaction.hex()
