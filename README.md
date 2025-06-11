@@ -1,6 +1,6 @@
 # 🔐 TyWallet
 
-[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.13.4](https://img.shields.io/badge/python-3.13.4-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 
@@ -39,7 +39,7 @@ TyWallet is a free, secure, and beginner-friendly cryptocurrency wallet built wi
 ## 📦 Installation
 
 ### Prerequisites
-- Python 3.7 or higher
+- Python 3.13.4 or higher
 - pip (Python package installer)
 - Git
 
@@ -240,7 +240,7 @@ We welcome contributions! Here's how you can help:
 ## 📋 System Requirements
 
 - **Operating System**: Windows 10+, macOS 10.14+, or Linux
-- **Python**: 3.7 or higher
+- **Python**: 3.13.4 or higher
 - **Memory**: 512MB RAM minimum
 - **Storage**: 100MB available disk space
 - **Network**: Internet connection for price updates and transactions

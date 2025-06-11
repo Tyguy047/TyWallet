@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 import requests
 import time
 import os
@@ -9,6 +10,7 @@ load_dotenv()
 CMC_API = os.getenv('CMC_API')
 
 app = Flask(__name__)
+CORS(app)
 
 # Global cache for prices
 price_cache = {
@@ -75,8 +77,17 @@ def main():
     <body>
         <h1>Welcome to the TyWallet API!</h1>
         <h2>(Scroll Down For Endpoints)</h2>
-        <p>Anyone can use this backend for your project but please consider making a donation so we run more servers and keep this API stable and free!</p>
+        <p>Anyone can use this API for their projects but please consider making a donation so we can run more servers and keep this API stable and free!</p>
         
+        <h2>Community & Support</h2>
+        <ul>
+            <li><strong>My Personal Website</strong> <a href="https://www.tylercaselli.com">https://www.tylercaselli.com</a></li>
+            <li><strong>Project Website:</strong> <a href="https://tywallet.xyz">https://tywallet.xyz</a></li>
+            <li><strong>Discord:</strong> Not Online Yet!</li>
+            <li><strong>GitHub:</strong> <a href="https://github.com/Tyguy047/TyWallet">https://github.com/Tyguy047/TyWallet</a></li>
+            <li><strong>Email:</strong> <a href="mailto:getintouch@tylercaselli.com">getintouch@tylercaselli.com</a></li>
+        </ul>
+
         <h2>Donations</h2>
         <ul>
             <li><strong>Bitcoin:</strong> Not Online Yet!</li>
@@ -88,13 +99,6 @@ def main():
         <p>If you would like to help the development of new crypto wallets, consider sending us some testnet coins we can give to devs!</p>
         <ul>
             <li><strong>Bitcoin Testnet:</strong> Not Online Yet!</li>
-        </ul>
-        
-        <h2>Community & Support</h2>
-        <ul>
-            <li><strong>Discord:</strong> Not Online Yet!</li>
-            <li><strong>GitHub:</strong> Not Online Yet!</li>
-            <li><strong>Email:</strong> <a href="mailto:getintouch@tylercaselli.com">getintouch@tylercaselli.com</a></li>
         </ul>
         
         <p>I try to work on this whenever I have a chance so please be patient if you find a bug or something is not working as expected, I will try to fix it as soon as I can!</p>
@@ -133,3 +137,6 @@ def monero_price():
 @app.route('/prices/ethereum')
 def ethereum_price():
     return price_cache['ethereum']
+
+if __name__ == '__main__':
+    app.run(debug=True)

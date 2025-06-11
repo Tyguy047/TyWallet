@@ -182,6 +182,17 @@
             transform: translateY(-2px);
         }
         
+        .btn-tertiary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-tertiary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        
         /* Features Section */
         .features {
             padding: 80px 0;
@@ -453,6 +464,7 @@
             <a href="#" class="logo">🔐 TyWallet</a>
             <ul class="nav-links">
                 <li><a href="#home">Home</a></li>
+                <li><a href="#about">About</a></li>
                 <li><a href="#features">Features</a></li>
                 <li><a href="#coins">Supported Coins</a></li>
                 <li><a href="#api">API</a></li>
@@ -472,15 +484,15 @@
             <div class="live-prices">
                 <h3>Live Cryptocurrency Prices</h3>
                 <div class="price-item">
-                    <span>🟡 Bitcoin (BTC) <img src="/assets/bitcoin-icon.png" alt="Bitcoin" width="30" height="30"></span>
+                    <span><img src="https://raw.githubusercontent.com/Tyguy047/TyWallet/49cb447c4f06b76114bc0af366ea5fdca83de17f/assets/coin_icons/bitcoin.svg" alt="Bitcoin" width="30" height="30" style="vertical-align: middle; margin-left: 8px;"> Bitcoin (BTC)</span>
                     <span id="btc-price" class="price-loading">Loading...</span>
                 </div>
                 <div class="price-item">
-                    <span>🔷 Ethereum (ETH)</span>
+                    <span><img src="https://raw.githubusercontent.com/Tyguy047/TyWallet/49cb447c4f06b76114bc0af366ea5fdca83de17f/assets/coin_icons/ethereum.svg" alt="Ethereum" width="30" height="30" style="vertical-align: middle; margin-left: 8px;"> Ethereum (ETH)</span>
                     <span id="eth-price" class="price-loading">Loading...</span>
                 </div>
                 <div class="price-item">
-                    <span>🟠 Monero (XMR)</span>
+                    <span><img src="https://raw.githubusercontent.com/Tyguy047/TyWallet/49cb447c4f06b76114bc0af366ea5fdca83de17f/assets/coin_icons/monero.svg" alt="Monero" width="30" height="30" style="vertical-align: middle; margin-left: 8px;"> Monero (XMR)</span>
                     <span id="xmr-price" class="price-loading">Loading...</span>
                 </div>
                 <small style="opacity: 0.7;">Powered by TyWallet API</small>
@@ -502,25 +514,25 @@
                 <div class="feature-card fade-in-up">
                     <div class="feature-icon">🔒</div>
                     <h3>Secure & Private</h3>
-                    <p>Your private keys never leave your device. All wallet data is stored locally and encrypted with industry-standard security protocols.</p>
+                    <p>Your private keys never leave your device. <i>(Since this wallet is still in alpha development encryption of prvate keys is not yet implimented)</i></p>
                 </div>
                 
                 <div class="feature-card fade-in-up">
                     <div class="feature-icon">🐍</div>
                     <h3>Python-Powered</h3>
-                    <p>Built with Python for maximum accessibility. Easy to understand, modify, and extend. Perfect for developers and crypto enthusiasts who want control.</p>
+                    <p>TyWallet was built with Python since it is easy to learn and understant. We encourage our community to modify the source code to make the perfect wallet for you!</p>
                 </div>
                 
                 <div class="feature-card fade-in-up">
                     <div class="feature-icon">🌟</div>
                     <h3>Beginner Friendly</h3>
-                    <p>Simple, intuitive interface designed for crypto newcomers. Step-by-step wallet creation with clear explanations and helpful guides.</p>
+                    <p>Simple, intuitive interface designed for crypto newcomers. TyWallet features one click wallet & seed phrase generation.</p>
                 </div>
                 
                 <div class="feature-card fade-in-up">
                     <div class="feature-icon">⚡</div>
-                    <h3>Real-time Prices</h3>
-                    <p>Stay updated with live cryptocurrency prices from our free API. Track your favorite coins and make informed decisions.</p>
+                    <h3>Rapid Refresh</h3>
+                    <p>Stay updated with live cryptocurrency prices from our free API. It is refreshed every ~9 minutes which is great for intigration wallet applications.</p>
                 </div>
                 
                 <div class="feature-card fade-in-up">
@@ -544,21 +556,34 @@
             <h2 class="section-title">Supported Cryptocurrencies</h2>
             <div class="coins-grid">
                 <div class="coin-card fade-in-up">
-                    <div class="coin-icon">₿</div>
+                    <div class="coin-icon">
+                        <img src="https://raw.githubusercontent.com/Tyguy047/TyWallet/49cb447c4f06b76114bc0af366ea5fdca83de17f/assets/coin_icons/bitcoin.svg" alt="Bitcoin" width="60" height="60">
+                    </div>
                     <h3>Bitcoin (BTC)</h3>
-                    <p>The original cryptocurrency. Send, receive, and store Bitcoin with full testnet support for development.</p>
+                    <p>The original cryptocurrency. Send, receive, and store Bitcoin.</p>
                 </div>
                 
                 <div class="coin-card fade-in-up">
-                    <div class="coin-icon">Ξ</div>
+                    <div class="coin-icon">
+                        <img src="https://raw.githubusercontent.com/Tyguy047/TyWallet/49cb447c4f06b76114bc0af366ea5fdca83de17f/assets/coin_icons/ethereum.svg" alt="Ethereum" width="60" height="60">
+                    </div>
                     <h3>Ethereum (ETH)</h3>
-                    <p>Smart contract platform. Manage your Ethereum with support for standard transactions and custom gas fees.</p>
+                    <p>Manage your Ethereum with support for standard transactions and smart gas fees gas fees.</p>
                 </div>
                 
                 <div class="coin-card fade-in-up">
-                    <div class="coin-icon">ɱ</div>
+                    <div class="coin-icon">
+                        <img src="https://raw.githubusercontent.com/Tyguy047/TyWallet/49cb447c4f06b76114bc0af366ea5fdca83de17f/assets/coin_icons/monero.svg" alt="Monero" width="60" height="60">
+                    </div>
                     <h3>Monero (XMR)</h3>
                     <p>Privacy-focused cryptocurrency. Built-in privacy features for anonymous transactions and enhanced security.</p>
+                </div>
+            </div>
+            <!-- Notice about more coins coming soon -->
+            <div style="margin-top:2.5rem; text-align:center;">
+                <div style="display:inline-block; background:rgba(255,255,255,0.15); color:#fff; padding:1rem 2rem; border-radius:10px; font-size:1.1rem; border:1px solid rgba(255,255,255,0.2);">
+                    <strong>More coins and blockchains coming soon!</strong><br>
+                    We are actively developing support for additional cryptocurrencies and networks. Stay tuned for updates.
                 </div>
             </div>
         </div>
@@ -571,15 +596,12 @@
             <div class="api-content">
                 <div>
                     <h3>Unlimited & Free Forever</h3>
-                    <p>Access real-time cryptocurrency prices with our completely free API. No rate limits, no API keys required, and no hidden costs.</p>
+                    <p>Access rapid refreshing cryptocurrency prices with our completely free API. No rate limits, no API keys required, and no hidden costs.</p>
                     
                     <ul class="api-features">
-                        <li>Real-time price data for Bitcoin, Ethereum, and Monero</li>
+                        <li>Fast updating price data for Bitcoin, Ethereum, and Monero</li>
                         <li>No authentication required</li>
-                        <li>CORS enabled for web applications</li>
                         <li>Privacy-focused .onion endpoints available</li>
-                        <li>99.9% uptime guarantee</li>
-                        <li>JSON response format</li>
                     </ul>
                     
                     <div style="margin-top: 2rem;">
@@ -611,31 +633,46 @@ curl http://cbckdpjeksawellm4z2ttub3vmn552hnaagrsjueugfs4bzk5lzcyqqd.onion/price
     <section id="install" class="installation">
         <div class="container">
             <h2 class="section-title">Get Started in Minutes</h2>
-            <div class="install-steps">
-                <div class="install-step fade-in-up">
-                    <div class="step-number">1</div>
-                    <h3>Clone Repository</h3>
-                    <p>Download TyWallet from GitHub and navigate to the project directory.</p>
-                    <div class="code-block" style="margin-top: 1rem; font-size: 0.9rem;">
-                        <code>git clone https://github.com/Tyguy047/TyWallet<br>cd TyWallet</code>
-                    </div>
+            
+            <div style="text-align: center; margin-bottom: 3rem;">
+                <h3>Quick Start Options</h3>
+                <br>
+                <div class="cta-buttons">
+                    <a href="https://github.com/Tyguy047/TyWallet/releases/latest" class="btn btn-primary" target="_blank">📦 Download The Latest Prebuilt Version</a>
+                    <span style="color: #4a5568; margin: 0 1rem; display: flex; align-items: center;">or</span>
+                    <a href="#build-from-source" class="btn btn-tertiary">🔧 Build from Source</a>
                 </div>
-                
-                <div class="install-step fade-in-up">
-                    <div class="step-number">2</div>
-                    <h3>Install Dependencies</h3>
-                    <p>Install required Python packages using pip and the requirements file.</p>
-                    <div class="code-block" style="margin-top: 1rem; font-size: 0.9rem;">
-                        <code>pip install -r requirements.txt</code>
+                <p style="margin-top: 1rem; color: #4a5568;">Choose the prebuilt option for easy installation, or build from source for easier customization</p>
+            </div>
+            
+            <div id="build-from-source">
+                <h3 style="text-align: center; margin-bottom: 2rem;">Build from Source</h3>
+                <div class="install-steps">
+                    <div class="install-step fade-in-up">
+                        <div class="step-number">1</div>
+                        <h3>Clone Repository</h3>
+                        <p>Download TyWallet from GitHub and navigate to the project directory.</p>
+                        <div class="code-block" style="margin-top: 1rem; font-size: 0.9rem;">
+                            <code>git clone https://github.com/Tyguy047/TyWallet<br>cd TyWallet</code>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="install-step fade-in-up">
-                    <div class="step-number">3</div>
-                    <h3>Launch TyWallet</h3>
-                    <p>Run the main application and start managing your cryptocurrency wallets!</p>
-                    <div class="code-block" style="margin-top: 1rem; font-size: 0.9rem;">
-                        <code>python main.py</code>
+                    
+                    <div class="install-step fade-in-up">
+                        <div class="step-number">2</div>
+                        <h3>Install Dependencies</h3>
+                        <p>Install required Python packages using pip and the requirements file.</p>
+                        <div class="code-block" style="margin-top: 1rem; font-size: 0.9rem;">
+                            <code>pip install -r requirements.txt</code>
+                        </div>
+                    </div>
+                    
+                    <div class="install-step fade-in-up">
+                        <div class="step-number">3</div>
+                        <h3>Launch TyWallet</h3>
+                        <p>Run the main application and start managing your cryptocurrency wallets!</p>
+                        <div class="code-block" style="margin-top: 1rem; font-size: 0.9rem;">
+                            <code>python main.py</code>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -643,9 +680,33 @@ curl http://cbckdpjeksawellm4z2ttub3vmn552hnaagrsjueugfs4bzk5lzcyqqd.onion/price
             <div style="text-align: center; margin-top: 3rem;">
                 <h3>System Requirements</h3>
                 <p style="max-width: 600px; margin: 1rem auto; color: #4a5568;">
-                    TyWallet works on Windows, macOS, and Linux. Requires Python 3.7+ and approximately 100MB of disk space. 
-                    All dependencies are automatically installed via pip.
+                    TyWallet requires Python 3.13.4 or higher and was developed on an M1 MacBook Air and an Endeavour OS x86_64 desktop. It should run on any modern system and it is recommended that you develop and build with Python 3.13.4 or newer.
                 </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="features">
+        <div class="container">
+            <h2 class="section-title">About TyWallet</h2>
+            <div class="features-grid" style="grid-template-columns: 1fr; max-width: 800px; margin: 0 auto;">
+                <div class="feature-card fade-in-up" style="text-align: left;">
+                    <div class="feature-icon" style="text-align: center;">👋</div>
+                    <h3 style="text-align: center; margin-bottom: 2rem;">Why "TyWallet"?</h3>
+                    <p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 1.5rem;">
+                        Hi! I'm Tyler, and I named this project "TyWallet" as a play on my name. What started as a personal learning project has grown into something I hope can help others in the cryptocurrency community.
+                    </p>
+                    <p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 1.5rem;">
+                        I built TyWallet because I wanted a simple, secure, and transparent cryptocurrency wallet that anyone could understand and modify. As a developer who believes in open source software, I wanted to create something that empowers users rather than hiding complexity behind black boxes.
+                    </p>
+                    <p style="font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
+                        The goal is simple: make cryptocurrency accessible to everyone while maintaining the highest standards of security and privacy.
+                    </p>
+                    <div style="text-align: center;">
+                        <a href="https://www.tylercaselli.com" class="btn btn-primary" target="_blank">Learn More About Tyler</a>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -663,14 +724,14 @@ curl http://cbckdpjeksawellm4z2ttub3vmn552hnaagrsjueugfs4bzk5lzcyqqd.onion/price
                     <h3>Resources</h3>
                     <a href="https://github.com/Tyguy047/TyWallet" target="_blank">GitHub Repository</a>
                     <a href="https://api.tywallet.xyz" target="_blank">Free API</a>
-                    <a href="#" target="_blank">Documentation</a>
-                    <a href="#" target="_blank">Tutorials</a>
+                    <!-- <a href="#" target="_blank">Documentation</a>
+                    <a href="#" target="_blank">Tutorials</a> -->
                 </div>
                 
                 <div class="footer-section">
                     <h3>Community</h3>
-                    <a href="#" target="_blank">Discord Server</a>
-                    <a href="#" target="_blank">Reddit Community</a>
+                    <!-- <a href="#" target="_blank">Discord Server</a>
+                    <a href="#" target="_blank">Reddit Community</a> -->
                     <a href="#" target="_blank">Twitter</a>
                     <a href="mailto:getintouch@tylercaselli.com">Contact Us</a>
                 </div>
@@ -728,35 +789,6 @@ curl http://cbckdpjeksawellm4z2ttub3vmn552hnaagrsjueugfs4bzk5lzcyqqd.onion/price
             observer.observe(el);
         });
 
-        // Load live cryptocurrency prices
-        async function loadPrices() {
-            const coins = [
-                { id: 'btc-price', url: 'https://api.tywallet.xyz/prices/bitcoin', symbol: '$' },
-                { id: 'eth-price', url: 'https://api.tywallet.xyz/prices/ethereum', symbol: '$' },
-                { id: 'xmr-price', url: 'https://api.tywallet.xyz/prices/monero', symbol: '$' }
-            ];
-
-            for (const coin of coins) {
-                try {
-                    const response = await fetch(coin.url);
-                    if (response.ok) {
-                        const price = await response.text();
-                        document.getElementById(coin.id).textContent = `${coin.symbol}${price}`;
-                        document.getElementById(coin.id).classList.remove('price-loading');
-                    } else {
-                        throw new Error('Failed to fetch');
-                    }
-                } catch (error) {
-                    document.getElementById(coin.id).textContent = 'Error loading price';
-                    document.getElementById(coin.id).classList.remove('price-loading');
-                }
-            }
-        }
-
-        // Load prices on page load and refresh every 5 minutes
-        loadPrices();
-        setInterval(loadPrices, 300000); // 5 minutes
-
         // Add loading animation to buttons
         document.querySelectorAll('.btn').forEach(btn => {
             btn.addEventListener('click', function(e) {
@@ -790,5 +822,27 @@ curl http://cbckdpjeksawellm4z2ttub3vmn552hnaagrsjueugfs4bzk5lzcyqqd.onion/price
             }, 1000);
         }
     </script>
-</body>
+<style>
+  .price-item span:last-child {
+    color: white;
+    font-style: normal;
+  }
+</style>
+
+<script>
+async function fetchPrice(id, url) {
+    try {
+        const response = await fetch(url);
+        const text = await response.text();
+        document.getElementById(id).textContent = `$${text}`;
+    } catch (error) {
+        document.getElementById(id).textContent = 'Error loading';
+        console.error(`Error fetching ${id} price:`, error);
+    }
+}
+
+fetchPrice('btc-price', 'https://api.tywallet.xyz/prices/bitcoin');
+fetchPrice('eth-price', 'https://api.tywallet.xyz/prices/ethereum');
+fetchPrice('xmr-price', 'https://api.tywallet.xyz/prices/monero');
+</script>
 </html>
