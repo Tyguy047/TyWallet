@@ -118,6 +118,24 @@ def build_app():
         "--add-data", "../xmr.py:.",
         "--add-data", "../utils.py:.",
         
+        # Add bitcoinlib data files (required for the library to work)
+        "--collect-data", "bitcoinlib",
+        "--copy-metadata", "bitcoinlib",
+        
+        # Add ethereum related data files and metadata
+        "--collect-data", "eth_account",
+        "--copy-metadata", "eth_account",
+        "--collect-data", "web3",
+        "--copy-metadata", "web3",
+        "--collect-data", "eth_keys",
+        "--copy-metadata", "eth_keys",
+        "--collect-data", "eth_utils",
+        "--copy-metadata", "eth_utils",
+        "--collect-data", "cytoolz",
+        "--copy-metadata", "cytoolz",
+        "--collect-data", "mnemonic",
+        "--copy-metadata", "mnemonic",
+        
         # Exclude unnecessary modules to reduce size
         "--exclude-module", "tkinter",
         "--exclude-module", "matplotlib",
@@ -131,8 +149,41 @@ def build_app():
         "--hidden-import", "cryptography.fernet",
         "--hidden-import", "requests",
         "--hidden-import", "bitcoinlib",
+        "--hidden-import", "bitcoinlib.wallets",
+        "--hidden-import", "bitcoinlib.mnemonic",
+        "--hidden-import", "bitcoinlib.keys",
+        "--hidden-import", "bitcoinlib.transactions",
+        "--hidden-import", "bitcoinlib.services",
+        "--hidden-import", "bitcoinlib.networks",
+        "--hidden-import", "bitcoinlib.config",
+        "--hidden-import", "bitcoinlib.config.config",
+        "--hidden-import", "bitcoinlib.encoding",
+        "--hidden-import", "bitcoinlib.main",
         "--hidden-import", "web3",
         "--hidden-import", "eth_account",
+        "--hidden-import", "eth_account.account",
+        "--hidden-import", "eth_account.hdaccount",
+        "--hidden-import", "eth_account.hdaccount.deterministic",
+        "--hidden-import", "eth_account.hdaccount.mnemonic",
+        "--hidden-import", "eth_keys",
+        "--hidden-import", "eth_keys.backends",
+        "--hidden-import", "eth_keys.backends.native",
+        "--hidden-import", "eth_utils",
+        "--hidden-import", "cytoolz",
+        "--hidden-import", "mnemonic",
+        "--hidden-import", "eth_hash",
+        "--hidden-import", "eth_typing",
+        "--hidden-import", "hexbytes",
+        "--hidden-import", "rlp",
+        "--hidden-import", "pysha3",
+        "--hidden-import", "Crypto",
+        "--hidden-import", "Crypto.Hash",
+        "--hidden-import", "Crypto.Hash.keccak",
+        "--hidden-import", "coincurve",
+        "--hidden-import", "coincurve._libsecp256k1",
+        "--hidden-import", "bitarray",
+        "--hidden-import", "eth_abi",
+        "--hidden-import", "websockets",
         
         # Linux specific optimizations
         "--strip",     # Strip debug symbols to reduce size
@@ -279,6 +330,87 @@ echo "   sudo rm -f $ICON_DIR/tywallet.png"
     print(f"✅ Installation script created: {install_script_path}")
     return install_script_path
 
+def create_uninstall_script():
+    """Create an uninstallation script for easy system removal"""
+    print("🗑️ Creating uninstallation script...")
+    
+    uninstall_script_content = f"""#!/bin/bash
+# TyWallet Uninstallation Script for Arch Linux
+
+set -e
+
+APP_NAME="{APP_NAME}"
+INSTALL_DIR="/opt/tywallet"
+BIN_DIR="/usr/local/bin"
+DESKTOP_DIR="/usr/share/applications"
+ICON_DIR="/usr/share/pixmaps"
+
+echo "🗑️ Uninstalling TyWallet..."
+
+# Check if running as root
+if [[ $EUID -ne 0 ]]; then
+   echo "❌ This script must be run as root (use sudo)"
+   exit 1
+fi
+
+# Remove installation directory
+if [ -d "$INSTALL_DIR" ]; then
+    echo "📁 Removing installation directory..."
+    rm -rf "$INSTALL_DIR"
+    echo "✅ Removed $INSTALL_DIR"
+else
+    echo "⚠️ Installation directory not found: $INSTALL_DIR"
+fi
+
+# Remove symlink
+if [ -L "$BIN_DIR/tywallet" ] || [ -f "$BIN_DIR/tywallet" ]; then
+    echo "🔗 Removing symlink..."
+    rm -f "$BIN_DIR/tywallet"
+    echo "✅ Removed $BIN_DIR/tywallet"
+else
+    echo "⚠️ Symlink not found: $BIN_DIR/tywallet"
+fi
+
+# Remove desktop file
+if [ -f "$DESKTOP_DIR/{DESKTOP_FILE_NAME}" ]; then
+    echo "🖥️ Removing desktop file..."
+    rm -f "$DESKTOP_DIR/{DESKTOP_FILE_NAME}"
+    echo "✅ Removed $DESKTOP_DIR/{DESKTOP_FILE_NAME}"
+else
+    echo "⚠️ Desktop file not found: $DESKTOP_DIR/{DESKTOP_FILE_NAME}"
+fi
+
+# Remove icon
+if [ -f "$ICON_DIR/tywallet.png" ]; then
+    echo "🎨 Removing icon..."
+    rm -f "$ICON_DIR/tywallet.png"
+    echo "✅ Removed $ICON_DIR/tywallet.png"
+else
+    echo "⚠️ Icon not found: $ICON_DIR/tywallet.png"
+fi
+
+# Update desktop database
+echo "🔄 Updating desktop database..."
+update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
+
+# Update icon cache
+echo "🎨 Updating icon cache..."
+gtk-update-icon-cache -f -t "$ICON_DIR" 2>/dev/null || true
+
+echo "✅ TyWallet uninstalled successfully!"
+echo "💡 All TyWallet files have been removed from the system."
+"""
+    
+    uninstall_script_path = "dist/uninstall.sh"
+    with open(uninstall_script_path, 'w') as f:
+        f.write(uninstall_script_content)
+    
+    # Make uninstall script executable
+    os.chmod(uninstall_script_path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IROTH)
+    
+    print(f"✅ Uninstallation script created: {uninstall_script_path}")
+    return uninstall_script_path
+
 def create_package_info():
     """Create package information file"""
     print("📋 Creating package info...")
@@ -339,6 +471,9 @@ def post_build_setup():
     # Create installation script
     create_install_script()
     
+    # Create uninstallation script
+    create_uninstall_script()
+    
     # Create package info
     create_package_info()
 
@@ -353,7 +488,7 @@ def create_tar_package():
         subprocess.run([
             "tar", "-czf", f"dist/{package_name}.tar.gz",
             "-C", "dist",
-            APP_NAME, DESKTOP_FILE_NAME, "install.sh", "README.txt"
+            APP_NAME, DESKTOP_FILE_NAME, "install.sh", "uninstall.sh", "README.txt"
         ], check=True)
         
         print(f"✅ Package created: dist/{package_name}.tar.gz")
@@ -387,6 +522,8 @@ def main():
         print("   • Run: sudo ./dist/install.sh")
         print("   • Extract package and run install.sh")
         print(f"   • Manually run: ./dist/{APP_NAME}")
+        print("\n🗑️ To uninstall:")
+        print("   • Run: sudo ./dist/uninstall.sh")
         
     except KeyboardInterrupt:
         print("\n❌ Build cancelled by user")
